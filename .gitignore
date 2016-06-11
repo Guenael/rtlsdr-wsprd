@@ -1,0 +1,4 @@
+*.o
+rtlsdr_wsprd
+wspr_wisdom.dat
+hashtable.txt
