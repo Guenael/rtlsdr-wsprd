@@ -3,9 +3,11 @@
  * Copyright (c) 2016, Guenael
  * All rights reserved.
  *
- * This file is based on AirSpy project & HackRF project
- *   Copyright 2012 Jared Boone <jared@sharebrained.com>
- *   Copyright 2014-2015 Benjamin Vernoux <bvernoux@airspy.com>
+ * This file is based on rtl-sdr project, contribution :
+ *   Copyright (C) 2012 by Steve Markgraf <steve@steve-m.de>
+ *   Copyright (C) 2012 by Hoernchen <la@tfc-server.de>
+ *   Copyright (C) 2012 by Kyle Keen <keenerd@gmail.com>
+ *   Copyright (C) 2013 by Elias Oenal <EliasOenal@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,9 +47,7 @@
 #include "wsprd.h"
 
 /* TODO
- - BUG : bit packing not working
- - clean/fix samplerate selection
- - clean/fix serial number section
+ - multi device selection option
  - multispot report in one post
  - type fix (uint32_t etc..)
  - verbose option
@@ -59,7 +59,7 @@
 #define SAMPLING_RATE       2400000
 #define FS4_RATE            SAMPLING_RATE / 4                   // = 600 kHz
 #define DOWNSAMPLING        SAMPLING_RATE / SIGNAL_SAMPLE_RATE  // = 6400
-#define DEFAULT_BUF_LENGTH  (1 * 16384)  // 65536 ? (128 * 512)
+#define DEFAULT_BUF_LENGTH  (4 * 16384)                         // = 65536
 
 
 /* Global declaration for these structs */
@@ -67,7 +67,7 @@ struct receiver_state   rx_state;
 struct receiver_options rx_options;
 struct decoder_options  dec_options;
 struct decoder_results  dec_results[50];
-static rtlsdr_dev_t *rtl_device = NULL; // FIXME
+static rtlsdr_dev_t *rtl_device = NULL;
 
 
 /* Thread stuff for separate decoding */
@@ -96,7 +96,6 @@ struct dongle_state dongle;
 static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void *ctx) {
     int8_t *sigIn = (int8_t*) samples;
     uint32_t sigLenght = samples_count;
-    // !!! FIXME naming?
 
     static uint32_t decimationIndex=0;
     
@@ -125,21 +124,10 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     };
     float Isum,Qsum;
 
-
-
-    // !!! FIXME + conv float ?
-
-    /* Convert unsigned signal to signed */
+    /* Convert unsigned to signed */
     for(uint32_t i=0; i<sigLenght; i++)
-        sigIn[i] = (int8_t)((int16_t)samples[i] - 127);
-
-    // FIXME swap IQ
-    int8_t bla;
-    for(uint32_t i=0; i<sigLenght; i+=2) {
-        bla = sigIn[i];
-        sigIn[i] = sigIn[i+1];
-        sigIn[i+1] = bla;
-    }
+        sigIn[i] ^= 0x80;  // XOR with a binary mask to flip the first bit (sign)
+        //sigIn[i] = (int8_t)((int32_t)samples[i] - 127);
 
     /* Economic mixer @ fs/4 (upper band)
        At fs/4, sin and cosin calculation are no longueur necessary.
@@ -151,19 +139,19 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
 
        out_I = in_I * cos(x) - in_Q * sin(x)
        out_Q = in_Q * cos(x) + in_I * sin(x)
-       (Weaver technique, keep the lower band)
+       (Weaver technique, keep the upper band, IQ inverted on RTL devices)
     */
     int16_t tmp;
     for (uint32_t i=0; i<sigLenght; i+=8) {
-        tmp = sigIn[i+3];
-        sigIn[i+3] = -sigIn[i+2];
+        tmp = -sigIn[i+3];
+        sigIn[i+3] = sigIn[i+2];
         sigIn[i+2] = tmp;
 
         sigIn[i+4] = -sigIn[i+4];
         sigIn[i+5] = -sigIn[i+5];
 
-        tmp = sigIn[i+6];
-        sigIn[i+6] = -sigIn[i+7];
+        tmp = -sigIn[i+6];
+        sigIn[i+6] = sigIn[i+7];
         sigIn[i+7] = tmp;
     }
 
@@ -188,6 +176,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
             continue;
         }
 
+        // FIXME/TODO : some optimisition here
         /* 1st Comb */
         Iy1  = Ix2 - It1z;
         It1z = It1y;
@@ -203,8 +192,8 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
         Qy2  = Qy1 - Qt2z;
         Qt2z = Qt2y;
         Qt2y = Qy1;
-        // FIXME/TODO : some optimisition here
 
+        // FIXME/TODO : could be made with int32_t (8 bits, 20 bits)
         /* FIR compensation filter */
         Isum=0.0, Qsum=0.0;
         for (uint32_t j=0; j<32; j++) {
@@ -224,8 +213,8 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
         if (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE)) {
             /* Lock the buffer during writing */     // Overkill ?!
             pthread_rwlock_wrlock(&dec.rw);
-            rx_state.iSamples[rx_state.iqIndex] = Qsum;  // FIXME
-            rx_state.qSamples[rx_state.iqIndex] = Isum;
+            rx_state.iSamples[rx_state.iqIndex] = Isum;
+            rx_state.qSamples[rx_state.iqIndex] = Qsum;
             pthread_rwlock_unlock(&dec.rw);
             rx_state.iqIndex++;
         } else {
@@ -238,7 +227,6 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
                 //printf("RX done! [Buffer size: %d]\n", rx_state.iqIndex);
             }
         }
-        
         decimationIndex = 0;
     }
 }
@@ -280,11 +268,13 @@ void postSpots(uint32_t n_results) {
             curl_easy_cleanup(curl);
         }
     }
+    if (n_results == 0)
+        printf("No spot\n");
 }
 
 
 static void *wsprDecoder(void *arg) {
-    /* WSPR decoder use buffers of 45000 samples (fixed value)
+    /* WSPR decoder use buffers of 45000 samples (hardcoded)
        (120 sec max @ 375sps = 45000 samples)
     */
     static float iSamples[45000]={0};
@@ -300,7 +290,7 @@ static void *wsprDecoder(void *arg) {
         if(rx_state.exit_flag)  // Abord case, final sig
             break;
 
-        /* Lock the buffer access and make copy */
+        /* Lock the buffer access and make a local copy */
         pthread_rwlock_wrlock(&dec.rw);
         memcpy(iSamples, rx_state.iSamples, rx_state.iqIndex * sizeof(float));
         memcpy(qSamples, rx_state.qSamples, rx_state.iqIndex * sizeof(float));
@@ -441,9 +431,7 @@ void usage(void) {
 
 int main(int argc, char** argv) {
     uint32_t opt;
-    uint32_t exit_code = EXIT_SUCCESS;
 
-    // FIXME
     int32_t  rtl_result;
     uint32_t rtl_index = 0; // By default, use the first RTLSDR
     int32_t  rtl_count;
@@ -533,13 +521,13 @@ int main(int argc, char** argv) {
 
     /* If something goes wrong... */
     signal(SIGINT, &sigint_callback_handler);
+    signal(SIGTERM, &sigint_callback_handler);
     signal(SIGILL, &sigint_callback_handler);
     signal(SIGFPE, &sigint_callback_handler);
     signal(SIGSEGV, &sigint_callback_handler);
-    signal(SIGTERM, &sigint_callback_handler);
     signal(SIGABRT, &sigint_callback_handler);
 
-
+    /* Init & parameter the device */
     rtl_count = rtlsdr_get_device_count();
     if (!rtl_count) {
         fprintf(stderr, "No supported devices found\n");
@@ -553,6 +541,7 @@ int main(int argc, char** argv) {
         fprintf(stderr, "  %d:  %s, %s, SN: %s\n", i, rtl_vendor, rtl_product, rtl_serial);
     }
     fprintf(stderr, "\nUsing device %d: %s\n", rtl_index, rtlsdr_get_device_name(rtl_index));
+
 
     rtl_result = rtlsdr_open(&rtl_device, rtl_index);
     if (rtl_result < 0) {
@@ -676,8 +665,8 @@ int main(int argc, char** argv) {
 
         while( (rx_state.exit_flag == false) && 
                (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) ) ) {
-            sleep(1);
-            //usleep(250000);
+            //sleep(1);
+            usleep(250000);
         }
     }
 
@@ -702,5 +691,5 @@ int main(int argc, char** argv) {
     pthread_mutex_destroy(&dec.ready_mutex);
     pthread_exit(NULL);
 
-    return exit_code;
+    return EXIT_SUCCESS;
 }
