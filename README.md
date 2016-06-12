@@ -14,7 +14,7 @@ Most of RTL dongles use a cheap crystal, and frequency drift can avoid WSPR deco
 - Repeat...
 
 *Tested with Raspbian GNU Linux, using a RaspberryPi 2*
-(20% of one core @1GHz (rx & decimation), and a burst during 10s on the second core)
+(15% of one core @1GHz (rx & decimation), and a burst during 10s on the second core)
 
 <h3>Howto :</h3>
 1. Install a Linux compatible disto on your device (ex. Raspbian for RaspberryPi)
