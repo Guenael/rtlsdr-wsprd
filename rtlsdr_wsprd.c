@@ -419,12 +419,13 @@ void usage(void) {
             "\t-a auto gain (default: off)\n"
             "\t-o frequency offset (default: 0)\n"
             "\t-p crystal correction factor (ppm) (default: 0)\n"
+            "\t-u upconverter (default: 0, example: 125M)\n"
             "Decoder extra options:\n"
             "\t-H do not use (or update) the hash table\n"
             "\t-Q quick mode, doesn't dig deep for weak signals\n"
             "\t-S single pass mode, no subtraction (same as original wsprd)\n"
             "Example:\n"
-            "\trtlsdr_wsprd -f 144.489M -c A1XYZ -l AB12cd -g 29 -o -4085\n");
+            "\trtlsdr_wsprd -f 144.489M -c A1XYZ -l AB12cd -g 29 -o -4080\n");
     exit(1);
 }
 
@@ -451,7 +452,7 @@ int main(int argc, char** argv) {
     if (argc <= 1)
         usage();
 
-    while ((opt = getopt(argc, argv, "f:c:l:g:a:o:p:H:Q:S")) != -1) {
+    while ((opt = getopt(argc, argv, "f:c:l:g:a:o:p:u:H:Q:S")) != -1) {
         switch (opt) {
         case 'f': // Frequency
             rx_options.dialfreq = (uint32_t)atofs(optarg);
@@ -478,7 +479,10 @@ int main(int argc, char** argv) {
             break;
         case 'p':
             rx_options.ppm = atoi(optarg);
-            break;            
+            break;
+        case 'u': // Frequency
+            rx_options.upconverter = (uint32_t)atofs(optarg);
+            break;
         case 'H': // Decoder option, use a hastable 
             dec_options.usehashtable = 0;
             break;            
@@ -514,7 +518,7 @@ int main(int argc, char** argv) {
     }
 
     /* Calcule shift offset */
-    rx_options.realfreq = rx_options.dialfreq + rx_options.shift;
+    rx_options.realfreq = rx_options.dialfreq + rx_options.shift + rx_options.upconverter;
 
     /* Store the frequency used for the decoder */
     dec_options.freq = rx_options.dialfreq;
