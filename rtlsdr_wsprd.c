@@ -40,7 +40,7 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <curl/curl.h>
-
+#include <pthread.h>
 #include <rtl-sdr.h>
 
 #include "rtlsdr_wsprd.h"
@@ -49,7 +49,6 @@
 /* TODO
  - multi device selection option
  - multispot report in one post
- - type fix (uint32_t etc..)
  - verbose option
 */
 
@@ -73,6 +72,7 @@ static rtlsdr_dev_t *rtl_device = NULL;
 /* Thread stuff for separate decoding */
 struct decoder_state {
     pthread_t        thread;
+    pthread_attr_t   tattr;
 
     pthread_rwlock_t rw;
     pthread_cond_t   ready_cond;
@@ -141,7 +141,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
        out_Q = in_Q * cos(x) + in_I * sin(x)
        (Weaver technique, keep the upper band, IQ inverted on RTL devices)
     */
-    int16_t tmp;
+    int8_t tmp;
     for (uint32_t i=0; i<sigLenght; i+=8) {
         tmp = -sigIn[i+3];
         sigIn[i+3] = sigIn[i+2];
@@ -425,7 +425,7 @@ void usage(void) {
             "\t-Q quick mode, doesn't dig deep for weak signals\n"
             "\t-S single pass mode, no subtraction (same as original wsprd)\n"
             "Example:\n"
-            "\trtlsdr_wsprd -f 144.489M -c A1XYZ -l AB12cd -g 29 -o -4080\n");
+            "\trtlsdr_wsprd -f 144.489M -c A1XYZ -l AB12cd -g 29 -o -4200\n");
     exit(1);
 }
 
@@ -480,7 +480,7 @@ int main(int argc, char** argv) {
         case 'p':
             rx_options.ppm = atoi(optarg);
             break;
-        case 'u': // Frequency
+        case 'u': // Upconverter frequency
             rx_options.upconverter = (uint32_t)atofs(optarg);
             break;
         case 'H': // Decoder option, use a hastable 
@@ -616,7 +616,7 @@ int main(int argc, char** argv) {
     time_t rawtime;
     time ( &rawtime );
     struct tm *gtm = gmtime(&rawtime);
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.1\n",
+    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.2\n",
            gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
     printf("  Callsign     : %s\n", dec_options.rcall);
     printf("  Locator      : %s\n", dec_options.rloc);
@@ -637,6 +637,13 @@ int main(int argc, char** argv) {
     uint32_t uwait = 120000000 - usec;
     printf("Wait for time sync (start in %d sec)\n\n", uwait/1000000);
     
+    /* Prepare a low priority param for the decoder thread */
+    struct sched_param p;
+    pthread_attr_init(&dec.tattr);
+    pthread_attr_setschedpolicy(&dec.tattr, SCHED_RR);
+    pthread_attr_getschedparam(&dec.tattr, &p);
+    p.sched_priority = 40;
+    pthread_attr_setschedparam(&dec.tattr, &p);
 
     /* Create a thread and stuff for separate decoding
        Info : https://computing.llnl.gov/tutorials/pthreads/
@@ -644,9 +651,8 @@ int main(int argc, char** argv) {
     pthread_rwlock_init(&dec.rw, NULL);
     pthread_cond_init(&dec.ready_cond, NULL);
     pthread_mutex_init(&dec.ready_mutex, NULL);
-    pthread_create(&dec.thread, NULL, wsprDecoder, NULL);
     pthread_create(&dongle.thread, NULL, rtlsdr_rx, NULL);
-
+    pthread_create(&dec.thread, &dec.tattr, wsprDecoder, NULL);
 
     /* Main loop : Wait, read, decode */
     while (!rx_state.exit_flag) {
@@ -669,7 +675,6 @@ int main(int argc, char** argv) {
 
         while( (rx_state.exit_flag == false) && 
                (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) ) ) {
-            //sleep(1);
             usleep(250000);
         }
     }

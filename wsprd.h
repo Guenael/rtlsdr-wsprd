@@ -46,7 +46,7 @@ struct decoder_options {
 
 
 struct decoder_results {
-    float    freq;
+    double   freq;
     float    sync;
     float    snr;
     float    dt;
@@ -61,12 +61,13 @@ struct decoder_results {
 
 
 void sync_and_demodulate(float *id, float *qd, long np,
-                         unsigned char *symbols, float *f1, float fstep,
-                         int *shift1, int lagmin, int lagmax, int lagstep,
-                         float *drift1, int symfac, float *sync, int mode);
+                         uint8_t *symbols, float *f1, float fstep,
+                         int32_t *shift1, int32_t lagmin, int32_t lagmax, int32_t lagstep,
+                         float *drift1, int32_t symfac, float *sync, int32_t mode);
 void subtract_signal(float *id, float *qd, long np,
-                     float f0, int shift0, float drift0, unsigned char* channel_symbols);
+                     float f0, int32_t shift0, float drift0, uint8_t* channel_symbols);
 void subtract_signal2(float *id, float *qd, long np,
-                      float f0, int shift0, float drift0, unsigned char* channel_symbols);
-int wspr_decode(float *idat, float *qdat, unsigned int npoints,
-                struct decoder_options options, struct decoder_results *decodes, int *n_results);
+                      float f0, int32_t shift0, float drift0, uint8_t* channel_symbols);
+int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
+                    struct decoder_options options, struct decoder_results *decodes,
+                    int32_t *n_results);
