@@ -444,8 +444,11 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
     char hashtab[32768*13]= {0};
     int32_t nh;
 
-    float allfreqs[100]={0};
-    char allcalls[100][13]={0};
+    float allfreqs[100];
+    char allcalls[100][13];
+    memset(allfreqs,0,sizeof(float)*100);
+    memset(allcalls,0,sizeof(char)*100*13);
+
 
     // Parameters used for performance-tuning:
     maxcycles=10000;                         //Fano timeout limit
