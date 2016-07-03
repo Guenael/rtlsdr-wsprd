@@ -655,7 +655,8 @@ int main(int argc, char** argv) {
     pthread_cond_init(&dec.ready_cond, NULL);
     pthread_mutex_init(&dec.ready_mutex, NULL);
     pthread_create(&dongle.thread, NULL, rtlsdr_rx, NULL);
-    pthread_create(&dec.thread, &dec.tattr, wsprDecoder, NULL);
+    //pthread_create(&dec.thread, &dec.tattr, wsprDecoder, NULL);
+    pthread_create(&dec.thread, NULL, wsprDecoder, NULL);
 
     /* Main loop : Wait, read, decode */
     while (!rx_state.exit_flag) {
