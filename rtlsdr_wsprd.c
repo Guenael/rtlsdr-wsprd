@@ -637,7 +637,7 @@ int main(int argc, char** argv) {
     uint32_t uwait = 120000000 - usec;
     printf("Wait for time sync (start in %d sec)\n\n", uwait/1000000);
     
-    /* Prepare a low priority param for the decoder thread */
+    /* Prepare a low priority param for the decoder thread 
     struct sched_param param;
     pthread_attr_init(&dec.tattr);
     pthread_attr_setschedpolicy(&dec.tattr, SCHED_RR);
@@ -645,7 +645,8 @@ int main(int argc, char** argv) {
     param.sched_priority = 90;  // = sched_get_priority_min();
     pthread_attr_setschedparam(&dec.tattr, &param);
     //int res=0;
-    //printf("get: %d\n", res);
+    //printf("get: %d\n", res)
+    */
 
     /* Create a thread and stuff for separate decoding
        Info : https://computing.llnl.gov/tutorials/pthreads/
