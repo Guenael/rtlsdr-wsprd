@@ -94,7 +94,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     uint32_t sigLenght = samples_count;
 
     static uint32_t decimationIndex=0;
-    
+
     /* CIC buffers */
     static int32_t  Ix1,Ix2,Qx1,Qx2;
     static int32_t  Iy1,It1y,It1z,Qy1,Qt1y,Qt1z;
@@ -479,16 +479,16 @@ int main(int argc, char** argv) {
         case 'u': // Upconverter frequency
             rx_options.upconverter = (uint32_t)atofs(optarg);
             break;
-        case 'H': // Decoder option, use a hastable 
+        case 'H': // Decoder option, use a hastable
             dec_options.usehashtable = 0;
-            break;            
+            break;
         case 'Q': // Decoder option, faster
             dec_options.quickmode = 1;
-            break;            
+            break;
         case 'S': // Decoder option, single pass mode (same as original wsprd)
             dec_options.subtraction = 0;
             dec_options.npasses = 1;
-            break;            
+            break;
         default:
             usage();
             break;
@@ -582,7 +582,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    
+
     if (rx_options.ppm != 0) {
         rtl_result = rtlsdr_set_freq_correction(rtl_device, rx_options.ppm);
         if (rtl_result < 0) {
@@ -632,7 +632,7 @@ int main(int argc, char** argv) {
     uint32_t usec  = sec * 1000000 + lTime.tv_usec;
     uint32_t uwait = 120000000 - usec;
     printf("Wait for time sync (start in %d sec)\n\n", uwait/1000000);
-    
+
     /* Prepare a low priority param for the decoder thread */
     struct sched_param param;
     pthread_attr_init(&dec.tattr);
@@ -671,7 +671,7 @@ int main(int argc, char** argv) {
         /* Start to store the samples */
         initSampleStorage();
 
-        while( (rx_state.exit_flag == false) && 
+        while( (rx_state.exit_flag == false) &&
                (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) ) ) {
             usleep(250000);
         }
