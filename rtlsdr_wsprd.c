@@ -243,7 +243,7 @@ void postSpots(uint32_t n_results) {
     char url[256]; // FIXME, possible buffer overflow
 
     for (uint32_t i=0; i<n_results; i++) {
-        sprintf(url,"http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%s&time=%s&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=0.1_wsprd&mode=2",
+        sprintf(url,"http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%s&time=%s&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=0.2r_wsprd&mode=2",
                 dec_options.rcall, dec_options.rloc, dec_results[i].freq, dec_options.date, dec_options.uttime,
                 dec_results[i].snr, dec_results[i].dt, dec_results[i].freq,
                 dec_results[i].call, dec_results[i].loc, dec_results[i].pwr);
