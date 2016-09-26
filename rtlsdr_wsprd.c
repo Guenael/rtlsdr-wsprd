@@ -416,6 +416,7 @@ void usage(void) {
             "\t-o frequency offset (default: 0)\n"
             "\t-p crystal correction factor (ppm) (default: 0)\n"
             "\t-u upconverter (default: 0, example: 125M)\n"
+            "\t-d direct dampling [0,1,2] (default: 0, 1 for I input, 2 for Q input)\n"
             "Decoder extra options:\n"
             "\t-H do not use (or update) the hash table\n"
             "\t-Q quick mode, doesn't dig deep for weak signals\n"
@@ -448,7 +449,7 @@ int main(int argc, char** argv) {
     if (argc <= 1)
         usage();
 
-    while ((opt = getopt(argc, argv, "f:c:l:g:a:o:p:u:H:Q:S")) != -1) {
+    while ((opt = getopt(argc, argv, "f:c:l:g:a:o:p:u:d:H:Q:S")) != -1) {
         switch (opt) {
         case 'f': // Frequency
             rx_options.dialfreq = (uint32_t)atofs(optarg);
@@ -478,6 +479,9 @@ int main(int argc, char** argv) {
             break;
         case 'u': // Upconverter frequency
             rx_options.upconverter = (uint32_t)atofs(optarg);
+            break;
+        case 'd': // Direct Sampling
+            rx_options.directsampling = (uint32_t)atofs(optarg);
             break;
         case 'H': // Decoder option, use a hastable
             dec_options.usehashtable = 0;
@@ -549,6 +553,12 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
+    rtl_result = rtlsdr_set_direct_sampling(rtl_device, rx_options.directsampling);
+    if (rtl_result < 0) {
+        fprintf(stderr, "ERROR: Failed to set direct sampling\n");
+        rtlsdr_close(rtl_device);
+        return EXIT_FAILURE;
+    }
 
     rtl_result = rtlsdr_set_sample_rate(rtl_device, SAMPLING_RATE);
     if (rtl_result < 0) {
