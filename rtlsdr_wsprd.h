@@ -62,6 +62,7 @@ struct receiver_options {
     int32_t  ppm;
     int32_t  shift;
     int32_t  upconverter;
+    int32_t  directsampling;
     char     date[7];
     char     uttime[5];
 };
