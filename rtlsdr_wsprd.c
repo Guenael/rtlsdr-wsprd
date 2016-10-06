@@ -394,6 +394,7 @@ void initrx_options() {
     rx_options.autogain = 0;
     rx_options.ppm = 0;
     rx_options.shift = 0;
+    rx_options.directsampling = 0;
 }
 
 
@@ -553,11 +554,13 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    rtl_result = rtlsdr_set_direct_sampling(rtl_device, rx_options.directsampling);
-    if (rtl_result < 0) {
-        fprintf(stderr, "ERROR: Failed to set direct sampling\n");
-        rtlsdr_close(rtl_device);
-        return EXIT_FAILURE;
+    if (rx_options.directsampling) {
+        rtl_result = rtlsdr_set_direct_sampling(rtl_device, rx_options.directsampling);
+        if (rtl_result < 0) {
+            fprintf(stderr, "ERROR: Failed to set direct sampling\n");
+            rtlsdr_close(rtl_device);
+            return EXIT_FAILURE;
+        }
     }
 
     rtl_result = rtlsdr_set_sample_rate(rtl_device, SAMPLING_RATE);
