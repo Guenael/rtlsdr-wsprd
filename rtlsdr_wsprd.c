@@ -220,7 +220,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
                 pthread_cond_signal(&dec.ready_cond);
                 pthread_mutex_unlock(&dec.ready_mutex);
                 rx_state.decode_flag = true;
-                //printf("RX done! [Buffer size: %d]\n", rx_state.iqIndex);
+                //fprintf(stdout, "RX done! [Buffer size: %d]\n", rx_state.iqIndex);
             }
         }
         decimationIndex = 0;
@@ -248,7 +248,7 @@ void postSpots(uint32_t n_results) {
                 dec_results[i].snr, dec_results[i].dt, dec_results[i].freq,
                 dec_results[i].call, dec_results[i].loc, dec_results[i].pwr);
 
-        printf("Spot : %3.2f %4.2f %10.6f %2d  %-s\n",
+        fprintf(stdout, ("Spot : %3.2f %4.2f %10.6f %2d  %-s\n",
                dec_results[i].snr, dec_results[i].dt, dec_results[i].freq,
                (int)dec_results[i].drift, dec_results[i].message);
 
@@ -300,11 +300,11 @@ static void *wsprDecoder(void *arg) {
         memcpy(dec_options.uttime, rx_options.uttime, sizeof(rx_options.uttime));
 
         /* DEBUG -- Save samples
-        printf("Writing file\n");
+        fprintf(stdout, "Writing file\n");
         FILE* fd = NULL;
         fd = fopen("samples.bin", "wb");
         int r=fwrite(rx_state.iSamples, sizeof(float), samples_len, fd);
-        printf("%d samples written file\n", r);
+        fprintf(stdout, "%d samples written file\n", r);
         fclose(fd);
         */
 
@@ -625,17 +625,17 @@ int main(int argc, char** argv) {
     time_t rawtime;
     time ( &rawtime );
     struct tm *gtm = gmtime(&rawtime);
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.2\n",
+    fprintf(stdout, "\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.2\n",
            gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
-    printf("  Callsign     : %s\n", dec_options.rcall);
-    printf("  Locator      : %s\n", dec_options.rloc);
-    printf("  Dial freq.   : %d Hz\n", rx_options.dialfreq);
-    printf("  Real freq.   : %d Hz\n", rx_options.realfreq);
-    printf("  PPM factor   : %d\n", rx_options.ppm);
+    fprintf(stdout, "  Callsign     : %s\n", dec_options.rcall);
+    fprintf(stdout, "  Locator      : %s\n", dec_options.rloc);
+    fprintf(stdout, "  Dial freq.   : %d Hz\n", rx_options.dialfreq);
+    fprintf(stdout, "  Real freq.   : %d Hz\n", rx_options.realfreq);
+    fprintf(stdout,"  PPM factor   : %d\n", rx_options.ppm);
     if(rx_options.autogain)
-        printf("  Auto gain    : enable\n");
+        sprintf(stdout, "  Auto gain    : enable\n");
     else
-        printf("  Gain         : %d dB\n", rx_options.gain/10);
+        fprintf(stdout, "  Gain         : %d dB\n", rx_options.gain/10);
 
 
     /* Time alignment stuff */
@@ -644,7 +644,7 @@ int main(int argc, char** argv) {
     uint32_t sec   = lTime.tv_sec % 120;
     uint32_t usec  = sec * 1000000 + lTime.tv_usec;
     uint32_t uwait = 120000000 - usec;
-    printf("Wait for time sync (start in %d sec)\n\n", uwait/1000000);
+    fprintf(stdout, "Wait for time sync (start in %d sec)\n\n", uwait/1000000);
 
     /* Prepare a low priority param for the decoder thread */
     struct sched_param param;
@@ -654,7 +654,7 @@ int main(int argc, char** argv) {
     param.sched_priority = 90;  // = sched_get_priority_min();
     pthread_attr_setschedparam(&dec.tattr, &param);
     //int res=0;
-    //printf("get: %d\n", res)
+    //fprintf(stdout, "get: %d\n", res)
 
     /* Create a thread and stuff for separate decoding
        Info : https://computing.llnl.gov/tutorials/pthreads/
@@ -673,7 +673,7 @@ int main(int argc, char** argv) {
         usec  = sec * 1000000 + lTime.tv_usec;
         uwait = 120000000 - usec + 10000;  // Adding 10ms, to be sure to reach this next minute
         usleep(uwait);
-        //printf("SYNC! RX started\n");
+        //fprintf(stdout, "SYNC! RX started\n");
 
         /* Use the Store the date at the begin of the frame */
         time ( &rawtime );
@@ -696,7 +696,7 @@ int main(int argc, char** argv) {
     /* Close the RTL device */
     rtlsdr_close(rtl_device);
 
-    printf("Bye!\n");
+    fprintf(stdout, "Bye!\n");
 
     /* Wait the thread join (send a signal before to terminate the job) */
     pthread_mutex_lock(&dec.ready_mutex);
