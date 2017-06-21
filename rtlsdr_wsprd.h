@@ -63,6 +63,7 @@ struct receiver_options {
     int32_t  shift;
     int32_t  upconverter;
     int32_t  directsampling;
+    int32_t  maxloop;
     char     date[7];
     char     uttime[5];
 };

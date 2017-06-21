@@ -381,7 +381,7 @@ void initSampleStorage() {
 
 /* Default options for the decoder */
 void initDecoder_options() {
-    dec_options.usehashtable = 1;
+    dec_options.usehashtable = 0;
     dec_options.npasses = 2;
     dec_options.subtraction = 1;
     dec_options.quickmode = 0;
@@ -395,6 +395,7 @@ void initrx_options() {
     rx_options.ppm = 0;
     rx_options.shift = 0;
     rx_options.directsampling = 0;
+    rx_options.maxloop = 0;
 }
 
 
@@ -411,6 +412,7 @@ void usage(void) {
             "\t-f dial frequency [(,k,M) Hz], check http://wsprnet.org/ for freq.\n"
             "\t-c your callsign (12 chars max)\n"
             "\t-l your locator grid (6 chars max)\n"
+            "\t-n max iterations (default: 0 = infinite loop)\n"
             "Receiver extra options:\n"
             "\t-g gain [0-49] (default: 29)\n"
             "\t-a auto gain (default: off)\n"
@@ -419,7 +421,7 @@ void usage(void) {
             "\t-u upconverter (default: 0, example: 125M)\n"
             "\t-d direct dampling [0,1,2] (default: 0, 1 for I input, 2 for Q input)\n"
             "Decoder extra options:\n"
-            "\t-H do not use (or update) the hash table\n"
+            "\t-H use the hash table (could caught signal 11 on RPi)\n"
             "\t-Q quick mode, doesn't dig deep for weak signals\n"
             "\t-S single pass mode, no subtraction (same as original wsprd)\n"
             "Example:\n"
@@ -446,11 +448,13 @@ int main(int argc, char** argv) {
     /* Stop condition setup */
     rx_state.exit_flag   = false;
     rx_state.decode_flag = false;
+	uint32_t nLoop = 0;
+
 
     if (argc <= 1)
         usage();
 
-    while ((opt = getopt(argc, argv, "f:c:l:g:a:o:p:u:d:H:Q:S")) != -1) {
+    while ((opt = getopt(argc, argv, "f:c:l:n:g:a:o:p:u:d:H:Q:S")) != -1) {
         switch (opt) {
         case 'f': // Frequency
             rx_options.dialfreq = (uint32_t)atofs(optarg);
@@ -461,16 +465,19 @@ int main(int argc, char** argv) {
         case 'l': // Locator / Grid
             sprintf(dec_options.rloc, "%.6s", optarg);
             break;
+          case 'n': // Stop after n iterations
+            rx_options.maxloop = (uint32_t)atofs(optarg);
+            break;          
         case 'g': // Small signal amplifier gain
             rx_options.gain = atoi(optarg);
             if (rx_options.gain < 0) rx_options.gain = 0;
-            if (rx_options.gain > 49 ) rx_options.gain = 49;
+            if (rx_options.gain > 49) rx_options.gain = 49;
             rx_options.gain *= 10;
             break;
         case 'a': // Auto gain
             rx_options.autogain = atoi(optarg);
             if (rx_options.autogain < 0) rx_options.autogain = 0;
-            if (rx_options.autogain > 1 ) rx_options.autogain = 1;
+            if (rx_options.autogain > 1) rx_options.autogain = 1;
             break;
         case 'o': // Fine frequency correction
             rx_options.shift = atoi(optarg);
@@ -485,7 +492,7 @@ int main(int argc, char** argv) {
             rx_options.directsampling = (uint32_t)atofs(optarg);
             break;
         case 'H': // Decoder option, use a hastable
-            dec_options.usehashtable = 0;
+            dec_options.usehashtable = 1;
             break;
         case 'Q': // Decoder option, faster
             dec_options.quickmode = 1;
@@ -665,8 +672,9 @@ int main(int argc, char** argv) {
     pthread_create(&dongle.thread, NULL, rtlsdr_rx, NULL);
     pthread_create(&dec.thread, &dec.tattr, wsprDecoder, NULL);
 
+
     /* Main loop : Wait, read, decode */
-    while (!rx_state.exit_flag) {
+    while (!rx_state.exit_flag && !(rx_options.maxloop && (nLoop >= rx_options.maxloop))) {
         /* Wait for time Sync on 2 mins */
         gettimeofday(&lTime, NULL);
         sec   = lTime.tv_sec % 120;
@@ -688,6 +696,7 @@ int main(int argc, char** argv) {
                (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) ) ) {
             usleep(250000);
         }
+        nLoop++;
     }
 
     /* Stop the RX and free the blocking function */
