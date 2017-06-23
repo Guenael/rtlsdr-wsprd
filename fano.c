@@ -93,7 +93,7 @@ int fano( unsigned int  *metric,	// Final path metric (returned value)
           int mettab[2][256],	    // Metric table, [sent sym][rx symbol]
           int delta,		        // Threshold adjust parameter
           unsigned int maxcycles) { // Decoding timeout in cycles per bit
-    
+
     struct node *nodes;		        // First node
     struct node *np;	            // Current node
     struct node *lastnode;	        // Last node
@@ -200,7 +200,7 @@ int fano( unsigned int  *metric,	// Final path metric (returned value)
         }
 
         // Threshold violated, can't go forward
-        for(;;) {  
+        for(;;) {
             // Look backward
             if(np == nodes || np[-1].gamma < t) {
                 /* Can't back up either.
@@ -236,7 +236,7 @@ int fano( unsigned int  *metric,	// Final path metric (returned value)
     *cycles = i+1;
 
     free(nodes);
-    if(i >= maxcycles) 
+    if(i >= maxcycles)
         return -1;	 // Decoder timed out
 
     return 0;		 // Successful completion

@@ -110,10 +110,10 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     const static float zCoef[33] = {
         -0.0027772683, -0.0005058826,  0.0049745750, -0.0034059318,
         -0.0077557814,  0.0139375423,  0.0039896935, -0.0299394142,
-         0.0162250643,  0.0405130860, -0.0580746013, -0.0272104968,
-         0.1183705475, -0.0306029022, -0.2011241667,  0.1615898423,
-         0.5000000000,
-         0.1615898423, -0.2011241667, -0.0306029022,  0.1183705475,
+        0.0162250643,  0.0405130860, -0.0580746013, -0.0272104968,
+        0.1183705475, -0.0306029022, -0.2011241667,  0.1615898423,
+        0.5000000000,
+        0.1615898423, -0.2011241667, -0.0306029022,  0.1183705475,
         -0.0272104968, -0.0580746013,  0.0405130860,  0.0162250643,
         -0.0299394142,  0.0039896935,  0.0139375423, -0.0077557814,
         -0.0034059318,  0.0049745750, -0.0005058826, -0.0027772683
@@ -123,7 +123,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     /* Convert unsigned to signed */
     for(uint32_t i=0; i<sigLenght; i++)
         sigIn[i] ^= 0x80;  // XOR with a binary mask to flip the first bit (sign)
-        //sigIn[i] = (int8_t)((int32_t)samples[i] - 127);
+    //sigIn[i] = (int8_t)((int32_t)samples[i] - 127);
 
     /* Economic mixer @ fs/4 (upper band)
        At fs/4, sin and cosin calculation are no longueur necessary.
@@ -271,8 +271,8 @@ static void *wsprDecoder(void *arg) {
     /* WSPR decoder use buffers of 45000 samples (hardcoded)
        (120 sec max @ 375sps = 45000 samples)
     */
-    static float iSamples[45000]={0};
-    static float qSamples[45000]={0};
+    static float iSamples[45000]= {0};
+    static float qSamples[45000]= {0};
     static uint32_t samples_len;
     int32_t n_results=0;
 
@@ -425,12 +425,12 @@ int32_t readfile(float *iSamples, float *qSamples, char *filename) {
     }
 
     fclose(fd);
-    
+
     return 0;
 }
 
 
-int32_t writefile(float *iSamples, float *qSamples, char *filename, 
+int32_t writefile(float *iSamples, float *qSamples, char *filename,
                   uint32_t type, double freq) {
 
     FILE* fd = NULL;
@@ -508,7 +508,7 @@ int main(int argc, char** argv) {
     /* Stop condition setup */
     rx_state.exit_flag   = false;
     rx_state.decode_flag = false;
-	uint32_t nLoop = 0;
+    uint32_t nLoop = 0;
 
 
     if (argc <= 1)
@@ -550,10 +550,10 @@ int main(int argc, char** argv) {
             break;
         case 'n': // Stop after n iterations
             rx_options.maxloop = (uint32_t)atofs(optarg);
-            break;          
+            break;
         case 'i': // Select the device to use
             rx_options.device = (uint32_t)atofs(optarg);
-            break;          
+            break;
         case 'H': // Decoder option, use a hastable
             dec_options.usehashtable = 1;
             break;
@@ -754,7 +754,7 @@ int main(int argc, char** argv) {
         initSampleStorage();
 
         while( (rx_state.exit_flag == false) &&
-               (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) ) ) {
+                (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) ) ) {
             usleep(250000);
         }
         nLoop++;

@@ -313,9 +313,9 @@ void subtract_signal2(float *id, float *qd, long np,
                       float f0, int32_t shift0, float drift0, uint8_t* channel_symbols) {
 
     float phi=0, dphi, cs;
-    float refi[NIQ]={0}, refq[NIQ]={0},
-          ci[NIQ]={0},   cq[NIQ]={0},
-          cfi[NIQ]= {0}, cfq[NIQ]={0};
+    float refi[NIQ]= {0}, refq[NIQ]= {0},
+          ci[NIQ]= {0},   cq[NIQ]= {0},
+          cfi[NIQ]= {0},  cfq[NIQ]= {0};
 
     /******************************************************************************
      Measured signal:                    s(t)=a(t)*exp( j*theta(t) )
@@ -333,8 +333,8 @@ void subtract_signal2(float *id, float *qd, long np,
 
         dphi=TWOPIDT * ( f0 +
                          ((float)drift0/2.0)*((float)i-(float)NSYM/2.0)/((float)NSYM/2.0) +
-                         (cs-1.5)*DF  
-                        );
+                         (cs-1.5)*DF
+                       );
 
         for (int32_t j=0; j<NSPERSYM; j++ ) {
             int32_t ii=NSPERSYM*i+j;
@@ -495,7 +495,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
     // Main loop starts here
     for (int32_t ipass=0; ipass<options.npasses; ipass++) {
 
-        if( ipass == 1 && uniques == 0 ) 
+        if( ipass == 1 && uniques == 0 )
             break;
         if( ipass == 1 )  //otherwise we bog down on the second pass
             options.quickmode = 1;
@@ -581,7 +581,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
 
         /* Compute corrected fmin, fmax, accounting for dial frequency error
         float   dialfreq_error = 0.0; // dialfreq_error is in units of Hz
-        fmin += dialfreq_error;    
+        fmin += dialfreq_error;
         fmax += dialfreq_error;
         */
 
