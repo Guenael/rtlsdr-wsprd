@@ -165,7 +165,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
 
         /* Decimation R=6400 */
         decimationIndex++;
-        if (decimationIndex <= DOWNSAMPLING) {  // FIXME check !!!
+        if (decimationIndex <= DOWNSAMPLING) {
             continue;
         }
 

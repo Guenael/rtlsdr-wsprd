@@ -1,7 +1,5 @@
-#CFLAGS= -Wall -O3 -ffast-math -std=gnu99
-
 CC = gcc
-CFLAGS= -Wall -O2 -std=gnu99
+CFLAGS= -Wall -O3 -ffast-math -std=gnu99
 LDFLAGS = -L/usr/lib
 LIBS = -lusb-1.0 -lrtlsdr -lpthread -lfftw3f -lcurl -lm
 
