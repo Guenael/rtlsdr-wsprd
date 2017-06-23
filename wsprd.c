@@ -295,9 +295,7 @@ void subtract_signal(float *id, float *qd, long np,
             }
         }
 
-
         // subtract the signal here.
-
         i0=i0/NSPERSYM; //will be wrong for partial symbols at the edges...
         q0=q0/NSPERSYM;
 
@@ -320,9 +318,9 @@ void subtract_signal2(float *id, float *qd, long np,
                       float f0, int32_t shift0, float drift0, uint8_t* channel_symbols) {
 
     float phi=0, dphi, cs;
-    float refi[NIQ]= {0}, refq[NIQ]= {0},
-                                     ci[NIQ]= {0},   cq[NIQ]= {0},
-                                             cfi[NIQ]= {0},  cfq[NIQ]= {0};
+    float refi[NIQ]={0}, refq[NIQ]={0},
+          ci[NIQ]={0},   cq[NIQ]={0},
+          cfi[NIQ]= {0}, cfq[NIQ]={0};
 
     /******************************************************************************
      Measured signal:                    s(t)=a(t)*exp( j*theta(t) )
@@ -340,7 +338,8 @@ void subtract_signal2(float *id, float *qd, long np,
 
         dphi=TWOPIDT * ( f0 +
                          ((float)drift0/2.0)*((float)i-(float)NSYM/2.0)/((float)NSYM/2.0) +
-                         (cs-1.5)*DF  );
+                         (cs-1.5)*DF  
+                        );
 
         for (int32_t j=0; j<NSPERSYM; j++ ) {
             int32_t ii=NSPERSYM*i+j;
@@ -487,7 +486,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
     float ps[512][nffts];
     float w[512];
     for(i=0; i<512; i++) {
-        w[i]=sin(0.006147931*i);
+        w[i]=sinf(0.006147931*i);
     }
 
     if( options.usehashtable ) {
@@ -562,7 +561,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
          * The corresponding threshold is -42.3 dB in 2500 Hz bandwidth for WSPR-15. */
 
         float min_snr, snr_scaling_factor;
-        min_snr = pow(10.0,-7.0/10.0); //this is min snr in wspr bw
+        min_snr = powf(10.0,-7.0/10.0); //this is min snr in wspr bw
         if( wspr_type == 2 ) {
             snr_scaling_factor=26.3;
         } else {
@@ -587,7 +586,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
         for(j=1; j<410; j++) {
             if((smspec[j]>smspec[j-1]) && (smspec[j]>smspec[j+1]) && (npk<200)) {
                 freq0[npk]=(j-205)*(DF/2.0);
-                snr0[npk]=10*log10(smspec[j])-snr_scaling_factor;
+                snr0[npk]=10*log10f(smspec[j])-snr_scaling_factor;
                 npk++;
             }
         }
