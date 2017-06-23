@@ -48,7 +48,8 @@
 
 /* TODO
  - multispot report in one post
- - verbose option
+ - post zero spot if nothing found
+ - fft & snr sort fix
 */
 
 
@@ -296,33 +297,7 @@ static void *wsprDecoder(void *arg) {
         memcpy(dec_options.date, rx_options.date, sizeof(rx_options.date));
         memcpy(dec_options.uttime, rx_options.uttime, sizeof(rx_options.uttime));
 
-        /* DEBUG -- Save samples 
-        static FILE* fd = NULL;
-        static char filename[256];
-        static uint32_t fileinc = 0;
-        static char fileinfo[15]={};
-        static uint32_t type=2;
-        static double filefreq;
-        static float filebuffer[2*45000];
-
-        sprintf(filename, "samples%d.c2", fileinc++);
-        filefreq = (double)rx_options.dialfreq/1000000.0;
-
-        uint32_t j=0;
-        for(uint32_t i=0; i<45000; i++) {
-            filebuffer[j++] = iSamples[i];
-            filebuffer[j++] = -qSamples[i];
-        }
-
-        printf("Writing file\n");
-        fd = fopen(filename, "wb");
-        fwrite(&fileinfo, sizeof(char), 14, fd);
-        fwrite(&type, sizeof(uint32_t), 1, fd);
-        fwrite(&filefreq, sizeof(double), 1, fd);
-        int r=fwrite(filebuffer, sizeof(float), 2*45000, fd);
-        printf("%d samples written file\n", r);
-        fclose(fd);
-        */
+        /* DEBUG -- Save samples */
 
         /* Search & decode the signal */
         wspr_decode(iSamples, qSamples, samples_len, dec_options, dec_results, &n_results);
@@ -419,6 +394,74 @@ void initrx_options() {
 void sigint_callback_handler(int signum) {
     fprintf(stdout, "Caught signal %d\n", signum);
     rx_state.exit_flag = true;
+}
+
+
+int32_t readfile(float *iSamples, float *qSamples, char *filename) {
+    FILE* fd = NULL;
+    float filebuffer[2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE];
+
+    fd = fopen(filename, "rb");
+    if (fd == NULL) {
+        fprintf(stderr, "Cannot open data file...\n");
+        return 1;
+    }
+
+    int32_t res = fseek(fd, 26, SEEK_SET);
+    if (res) {
+        fprintf(stderr, "Cannot set file offset...\n");
+        return 1;
+    }
+
+    int32_t nread = fread(filebuffer, sizeof(float), 2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE, fd);
+    if (nread != 2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE) {
+        fprintf(stderr, "Cannot read all the data!\n");
+        return 1;
+    }
+
+    for(int32_t i=0; i<SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE; i++) {
+        iSamples[i] =  filebuffer[2*i];
+        qSamples[i] = -filebuffer[2*i+1];
+    }
+
+    fclose(fd);
+    
+    return 0;
+}
+
+
+int32_t writefile(float *iSamples, float *qSamples, char *filename, 
+                  uint32_t type, double freq) {
+
+    FILE* fd = NULL;
+    char info[15] = {};  // Info descriptor, not used for now
+
+    float filebuffer[2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE];
+    for(int32_t i=0; i<SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE; i++) {
+        filebuffer[2*i]   =  iSamples[i];
+        filebuffer[2*i+1] = -qSamples[i];
+    }
+
+    fd = fopen(filename, "wb");
+    if (fd == NULL) {
+        fprintf(stderr, "Cannot open data file...\n");
+        return 1;
+    }
+
+    // Header
+    fwrite(&info, sizeof(char), 14, fd);
+    fwrite(&type, sizeof(uint32_t), 1, fd);
+    fwrite(&freq, sizeof(double), 1, fd);
+
+    int32_t nwrite = fwrite(filebuffer, sizeof(float), 2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE, fd);
+    if (nwrite != 2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE) {
+        fprintf(stderr, "Cannot write all the data!\n");
+        return 1;
+    }
+
+    fclose(fd);
+
+    return 0;
 }
 
 
@@ -680,8 +723,6 @@ int main(int argc, char** argv) {
     pthread_attr_getschedparam(&dec.tattr, &param);
     param.sched_priority = 90;  // = sched_get_priority_min();
     pthread_attr_setschedparam(&dec.tattr, &param);
-    //int res=0;
-    //printf("get: %d\n", res)
 
     /* Create a thread and stuff for separate decoding
        Info : https://computing.llnl.gov/tutorials/pthreads/

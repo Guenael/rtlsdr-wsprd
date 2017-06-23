@@ -63,7 +63,7 @@ struct decoder_results {
 
 
 void sync_and_demodulate(float *id, float *qd, long np,
-                         uint8_t *symbols, float *f1, float fstep,
+                         uint8_t *symbols, float *freq1, float fstep,
                          int32_t *shift1, int32_t lagmin, int32_t lagmax, int32_t lagstep,
                          float *drift1, int32_t symfac, float *sync, int32_t mode);
 void subtract_signal(float *id, float *qd, long np,

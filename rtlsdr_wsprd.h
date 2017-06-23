@@ -68,3 +68,18 @@ struct receiver_options {
     char     date[7];
     char     uttime[5];
 };
+
+static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void *ctx);
+static void *rtlsdr_rx(void *arg);
+void postSpots(uint32_t n_results);
+static void *wsprDecoder(void *arg);
+double atofs(char *s);
+int32_t parse_u64(char* s, uint64_t* const value);
+void initSampleStorage();
+void initDecoder_options();
+void initrx_options();
+void sigint_callback_handler(int signum);
+void usage(void);
+int32_t readfile(float *iSamples, float *qSamples, char *filename);
+int32_t writefile(float *iSamples, float *qSamples, char *filename, 
+                  uint32_t type, double freq);
