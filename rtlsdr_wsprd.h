@@ -64,6 +64,7 @@ struct receiver_options {
     int32_t  upconverter;
     int32_t  directsampling;
     int32_t  maxloop;
+    int32_t  device;
     char     date[7];
     char     uttime[5];
 };

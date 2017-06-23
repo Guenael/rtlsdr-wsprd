@@ -9,8 +9,7 @@
  Minor modifications by Joe Taylor, K1JT
 */
 
-#ifndef FANO_H
-#define FANO_H
+#pragma once
 
 int fano(unsigned int *metric, unsigned int *cycles, unsigned int *maxnp,
          unsigned char *data,unsigned char *symbols, unsigned int nbits,
@@ -35,5 +34,3 @@ _tmp = (encstate) & POLY2;\
 _tmp ^= _tmp >> 16;\
 (sym) |= Partab[(_tmp ^ (_tmp >> 8)) & 0xff];\
 }
-
-#endif

@@ -83,21 +83,21 @@ int encode(
 /* Decode packet with the Fano algorithm.
  * Return 0 on success, -1 on timeout
  */
-int fano(
-    unsigned int  *metric,	   // Final path metric (returned value)
-    unsigned int  *cycles,	   // Cycle count (returned value)
-    unsigned int  *maxnp,     // Progress before timeout (returned value)
-    unsigned char *data,	   // Decoded output data
-    unsigned char *symbols,   // Raw deinterleaved input symbols
-    unsigned int nbits,	   // Number of output bits
-    int mettab[2][256],	   // Metric table, [sent sym][rx symbol]
-    int delta,		   // Threshold adjust parameter
-    unsigned int maxcycles) { // Decoding timeout in cycles per bit
-    struct node *nodes;		   // First node
-    struct node *np;	           // Current node
-    struct node *lastnode;	   // Last node
-    struct node *tail;		   // First node of tail
-    int t;			   // Threshold
+int fano( unsigned int  *metric,	// Final path metric (returned value)
+          unsigned int  *cycles,	// Cycle count (returned value)
+          unsigned int  *maxnp,     // Progress before timeout (returned value)
+          unsigned char *data,	    // Decoded output data
+          unsigned char *symbols,   // Raw deinterleaved input symbols
+          unsigned int nbits,	    // Number of output bits
+          int mettab[2][256],	    // Metric table, [sent sym][rx symbol]
+          int delta,		        // Threshold adjust parameter
+          unsigned int maxcycles) { // Decoding timeout in cycles per bit
+    
+    struct node *nodes;		        // First node
+    struct node *np;	            // Current node
+    struct node *lastnode;	        // Last node
+    struct node *tail;		        // First node of tail
+    int t;			                // Threshold
     int  m0,m1;
     int ngamma;
     unsigned int lsym;
@@ -124,7 +124,7 @@ int fano(
     np = nodes;
     np->encstate = 0;
 
-// Compute and sort branch metrics from root node */
+    // Compute and sort branch metrics from root node */
     ENCODE(lsym,np->encstate);	// 0-branch (LSB is 0)
     m0 = np->metrics[lsym];
 
@@ -137,28 +137,25 @@ int fano(
 
     m1 = np->metrics[3^lsym];
     if(m0 > m1) {
-        np->tm[0] = m0;                             // 0-branch has better metric
+        np->tm[0] = m0; // 0-branch has better metric
         np->tm[1] = m1;
     } else {
-        np->tm[0] = m1;                             // 1-branch is better
+        np->tm[0] = m1; // 1-branch is better
         np->tm[1] = m0;
-        np->encstate++;	                        // Set low bit
+        np->encstate++;	// Set low bit
     }
-    np->i = 0;	                                // Start with best branch
+    np->i = 0;	        // Start with best branch
     maxcycles *= nbits;
     np->gamma = t = 0;
 
     // Start the Fano decoder
     for(i=1; i <= maxcycles; i++) {
         if((int)(np-nodes) > (int)*maxnp) *maxnp=(int)(np-nodes);
-#ifdef	debug
-        printf("k=%ld, g=%ld, t=%d, m[%d]=%d, maxnp=%d, encstate=%lx\n",
-               np-nodes,np->gamma,t,np->i,np->tm[np->i],*maxnp,np->encstate);
-#endif
-// Look forward */
+
+        // Look forward */
         ngamma = np->gamma + np->tm[np->i];
         if(ngamma >= t) {
-            if(np->gamma < t + delta) {               // Node is acceptable
+            if(np->gamma < t + delta) {  // Node is acceptable
                 /* First time we've visited this node;
                  * Tighten threshold.
                  *
@@ -168,10 +165,11 @@ int fano(
                  */
                 while(ngamma >= t + delta) t += delta;
             }
-            np[1].gamma = ngamma;                     // Move forward
+            // Move forward
+            np[1].gamma = ngamma;
             np[1].encstate = np->encstate << 1;
             if( ++np == (lastnode+1) ) {
-                break;	                                // Done!
+                break; // Done!
             }
 
             /* Compute and sort metrics, starting with the
@@ -187,19 +185,22 @@ int fano(
                 m0 = np->metrics[lsym];
                 m1 = np->metrics[3^lsym];
                 if(m0 > m1) {
-                    np->tm[0] = m0;                       // 0-branch is better
+                    np->tm[0] = m0;  // 0-branch is better
                     np->tm[1] = m1;
                 } else {
-                    np->tm[0] = m1;                       // 1-branch is better
+                    np->tm[0] = m1;  // 1-branch is better
                     np->tm[1] = m0;
-                    np->encstate++;	                // Set low bit
+                    np->encstate++;	 // Set low bit
                 }
             }
-            np->i = 0;	                        // Start with best branch
+            np->i = 0;
+            // Start with best branch
             continue;
         }
+
         // Threshold violated, can't go forward
-        for(;;) {                                   // Look backward
+        for(;;) {  
+            // Look backward
             if(np == nodes || np[-1].gamma < t) {
                 /* Can't back up either.
                  * Relax threshold and and look
@@ -212,19 +213,21 @@ int fano(
                 }
                 break;
             }
+
             // Back up
             if(--np < tail && np->i != 1) {
-                np->i++;                          // Search next best branch
+                np->i++;                     // Search next best branch
                 np->encstate ^= 1;
                 break;
-            }                                   // else keep looking back
+            }                                // else keep looking back
         }
     }
-    *metric =  np->gamma;	                  // Return the final path metric
+    *metric =  np->gamma;	                 // Return the final path metric
 
     // Copy decoded data to user's buffer
     nbits >>= 3;
     np = &nodes[7];
+
     while(nbits-- != 0) {
         *data++ = np->encstate;
         np += 8;
@@ -232,6 +235,8 @@ int fano(
     *cycles = i+1;
 
     free(nodes);
-    if(i >= maxcycles) return -1;	          // Decoder timed out
-    return 0;		                  // Successful completion
+    if(i >= maxcycles) 
+        return -1;	 // Decoder timed out
+
+    return 0;		 // Successful completion
 }

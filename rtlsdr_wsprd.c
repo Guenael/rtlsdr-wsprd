@@ -396,6 +396,7 @@ void initrx_options() {
     rx_options.shift = 0;
     rx_options.directsampling = 0;
     rx_options.maxloop = 0;
+    rx_options.device = 0;
 }
 
 
@@ -412,7 +413,6 @@ void usage(void) {
             "\t-f dial frequency [(,k,M) Hz], check http://wsprnet.org/ for freq.\n"
             "\t-c your callsign (12 chars max)\n"
             "\t-l your locator grid (6 chars max)\n"
-            "\t-n max iterations (default: 0 = infinite loop)\n"
             "Receiver extra options:\n"
             "\t-g gain [0-49] (default: 29)\n"
             "\t-a auto gain (default: off)\n"
@@ -420,6 +420,8 @@ void usage(void) {
             "\t-p crystal correction factor (ppm) (default: 0)\n"
             "\t-u upconverter (default: 0, example: 125M)\n"
             "\t-d direct dampling [0,1,2] (default: 0, 1 for I input, 2 for Q input)\n"
+            "\t-n max iterations (default: 0 = infinite loop)\n"
+            "\t-i device index (in case of multiple receivers, default: 0)\n"
             "Decoder extra options:\n"
             "\t-H use the hash table (could caught signal 11 on RPi)\n"
             "\t-Q quick mode, doesn't dig deep for weak signals\n"
@@ -434,7 +436,6 @@ int main(int argc, char** argv) {
     uint32_t opt;
 
     int32_t  rtl_result;
-    uint32_t rtl_index = 0; // By default, use the first RTLSDR
     int32_t  rtl_count;
     char     rtl_vendor[256], rtl_product[256], rtl_serial[256];
 
@@ -454,7 +455,7 @@ int main(int argc, char** argv) {
     if (argc <= 1)
         usage();
 
-    while ((opt = getopt(argc, argv, "f:c:l:n:g:a:o:p:u:d:H:Q:S")) != -1) {
+    while ((opt = getopt(argc, argv, "f:c:l:g:a:o:p:u:d:n:i:H:Q:S")) != -1) {
         switch (opt) {
         case 'f': // Frequency
             rx_options.dialfreq = (uint32_t)atofs(optarg);
@@ -465,9 +466,6 @@ int main(int argc, char** argv) {
         case 'l': // Locator / Grid
             sprintf(dec_options.rloc, "%.6s", optarg);
             break;
-          case 'n': // Stop after n iterations
-            rx_options.maxloop = (uint32_t)atofs(optarg);
-            break;          
         case 'g': // Small signal amplifier gain
             rx_options.gain = atoi(optarg);
             if (rx_options.gain < 0) rx_options.gain = 0;
@@ -491,6 +489,12 @@ int main(int argc, char** argv) {
         case 'd': // Direct Sampling
             rx_options.directsampling = (uint32_t)atofs(optarg);
             break;
+        case 'n': // Stop after n iterations
+            rx_options.maxloop = (uint32_t)atofs(optarg);
+            break;          
+        case 'i': // Select the device to use
+            rx_options.device = (uint32_t)atofs(optarg);
+            break;          
         case 'H': // Decoder option, use a hastable
             dec_options.usehashtable = 1;
             break;
@@ -552,12 +556,12 @@ int main(int argc, char** argv) {
         rtlsdr_get_device_usb_strings(i, rtl_vendor, rtl_product, rtl_serial);
         fprintf(stderr, "  %d:  %s, %s, SN: %s\n", i, rtl_vendor, rtl_product, rtl_serial);
     }
-    fprintf(stderr, "\nUsing device %d: %s\n", rtl_index, rtlsdr_get_device_name(rtl_index));
+    fprintf(stderr, "\nUsing device %d: %s\n", rx_options.device, rtlsdr_get_device_name(rx_options.device));
 
 
-    rtl_result = rtlsdr_open(&rtl_device, rtl_index);
+    rtl_result = rtlsdr_open(&rtl_device, rx_options.device);
     if (rtl_result < 0) {
-        fprintf(stderr, "ERROR: Failed to open rtlsdr device #%d.\n", rtl_index);
+        fprintf(stderr, "ERROR: Failed to open rtlsdr device #%d.\n", rx_options.device);
         return EXIT_FAILURE;
     }
 
