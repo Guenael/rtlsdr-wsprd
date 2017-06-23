@@ -11,6 +11,10 @@
 
  Copyright 2014-2015, Steven Franke, K9AN
 
+ Minor modifications
+
+ Copyright 2016, Guenael Jouchet, VA2GKA
+
  License: GNU GPL v3
 
  This program is free software: you can redistribute it and/or modify
@@ -27,9 +31,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #pragma once
-
 
 /* Option & config of decoder (Shared with the wsprd code) */
 struct decoder_options {

@@ -1,10 +1,17 @@
 /*
  Functions used by wsprsim
  */
+
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <ctype.h>
+
 #include "wsprsim_utils.h"
 #include "wsprd_utils.h"
 #include "nhash.h"
 #include "fano.h"
+
 
 char get_locator_character_code(char ch) {
     if( ch >=48 && ch <=57 ) { //0-9
@@ -274,13 +281,6 @@ int get_wspr_channel_symbols(char* rawmessage, char* hashtab, unsigned char* sym
     data[9]=0;
     data[10]=0;
 
-    if( printdata ) {
-        printf("Data is :");
-        for (i=0; i<11; i++) {
-            printf("%02X ",data[i]);
-        }
-        printf("\n");
-    }
 
     // make sure that the 11-byte data vector is unpackable
     // unpack it with the routine that the decoder will use and display

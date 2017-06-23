@@ -11,9 +11,10 @@
 */
 
 #define	LL 1	                // Select Layland-Lushbaugh code
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+
 #include "fano.h"
 
 struct node {

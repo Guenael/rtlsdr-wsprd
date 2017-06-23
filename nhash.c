@@ -70,8 +70,9 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 
 #define SELF_TEST 1
 
-#include <stdio.h>      /* defines printf for tests */
-#include <time.h>       /* defines time_t for timings in the test */
+#include <stdio.h>
+#include <stdint.h>
+
 #include "nhash.h"
 //#include <sys/param.h>  /* attempt to define endianness */
 //#ifdef linux

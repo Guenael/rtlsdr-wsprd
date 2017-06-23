@@ -31,13 +31,10 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <math.h>
-#include <string.h>
 #include <stdint.h>
-#include <time.h>
+#include <stdlib.h>
+#include <string.h>
 #include <fftw3.h>
 
 #include "wsprd.h"
@@ -59,8 +56,7 @@
 #define NSIG     NSYM * NSPERSYM
 
 /* Possible PATIENCE options: FFTW_ESTIMATE, FFTW_ESTIMATE_PATIENT, FFTW_MEASURE, FFTW_PATIENT, FFTW_EXHAUSTIVE */
-//#define PATIENCE FFTW_ESTIMATE
-#define PATIENCE FFTW_MEASURE  // FIXME check !!!
+#define PATIENCE FFTW_ESTIMATE
 
 uint8_t pr3[NSYM]= {
     1,1,0,0,0,0,0,0,1,0,0,0,1,1,1,0,0,0,1,0,
@@ -80,17 +76,17 @@ fftwf_plan PLAN1,
 int32_t printdata=0;
 
 
-//***************************************************************************
+/***********************************************************************
+ * mode = 0: no frequency or drift search. find best time lag.          *
+ *        1: no time lag or drift search. find best frequency.          *
+ *        2: no frequency or time lag search. calculate soft-decision   *
+ *           symbols using passed frequency and shift.                  *
+ ************************************************************************/
 void sync_and_demodulate(float *id, float *qd, long np,
                          uint8_t *symbols, float *f1, float fstep,
                          int32_t *shift1, int32_t lagmin, int32_t lagmax, int32_t lagstep,
                          float *drift1, int32_t symfac, float *sync, int32_t mode) {
-    /***********************************************************************
-     * mode = 0: no frequency or drift search. find best time lag.          *
-     *        1: no time lag or drift search. find best frequency.          *
-     *        2: no frequency or time lag search. calculate soft-decision   *
-     *           symbols using passed frequency and shift.                  *
-     ************************************************************************/
+
 
     float fbest=0.0;
     float f0=0.0,fp,ss;
@@ -408,8 +404,6 @@ void subtract_signal2(float *id, float *qd, long np,
 }
 
 
-
-//***************************************************************************
 int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
                     struct decoder_options options, struct decoder_results *decodes,
                     int32_t *n_results) {
