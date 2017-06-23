@@ -47,7 +47,6 @@
 #include "wsprd.h"
 
 /* TODO
- - multi device selection option
  - multispot report in one post
  - verbose option
 */
@@ -152,8 +151,6 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     }
 
     /* CIC decimator (N=2)
-       (could be not perfect in time for some sampling rate.
-       Ex: AirSpy vs AirSpy Mini, but works fine in practice)
        Info: * Understanding CIC Compensation Filters
                https://www.altera.com/en_US/pdfs/literature/an/an455.pdf
              * Understanding cascaded integrator-comb filters
@@ -168,7 +165,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
 
         /* Decimation R=6400 */
         decimationIndex++;
-        if (decimationIndex < DOWNSAMPLING) {
+        if (decimationIndex <= DOWNSAMPLING) {  // FIXME check !!!
             continue;
         }
 
@@ -299,11 +296,30 @@ static void *wsprDecoder(void *arg) {
         memcpy(dec_options.date, rx_options.date, sizeof(rx_options.date));
         memcpy(dec_options.uttime, rx_options.uttime, sizeof(rx_options.uttime));
 
-        /* DEBUG -- Save samples
+        /* DEBUG -- Save samples 
+        static FILE* fd = NULL;
+        static char filename[256];
+        static uint32_t fileinc = 0;
+        static char fileinfo[15]={};
+        static uint32_t type=2;
+        static double filefreq;
+        static float filebuffer[2*45000];
+
+        sprintf(filename, "samples%d.c2", fileinc++);
+        filefreq = (double)rx_options.dialfreq/1000000.0;
+
+        uint32_t j=0;
+        for(uint32_t i=0; i<45000; i++) {
+            filebuffer[j++] = iSamples[i];
+            filebuffer[j++] = -qSamples[i];
+        }
+
         printf("Writing file\n");
-        FILE* fd = NULL;
-        fd = fopen("samples.bin", "wb");
-        int r=fwrite(rx_state.iSamples, sizeof(float), samples_len, fd);
+        fd = fopen(filename, "wb");
+        fwrite(&fileinfo, sizeof(char), 14, fd);
+        fwrite(&type, sizeof(uint32_t), 1, fd);
+        fwrite(&filefreq, sizeof(double), 1, fd);
+        int r=fwrite(filebuffer, sizeof(float), 2*45000, fd);
         printf("%d samples written file\n", r);
         fclose(fd);
         */
