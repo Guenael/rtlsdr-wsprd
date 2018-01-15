@@ -1,6 +1,6 @@
 # rtlsdr-wsprd -- WSPR daemon for RTL receivers
 
-This non-interactive application allows automatic reporting of WSPR spots on WSPRnet. The idea is to allow the use of small computer like RasberryPi or Beaglebone boards, with a simple deamon. This kind of very lightweight setup could run continuously without maintenance and help to increase the WSPR network. The code is massively based on Steven Franke (K9AN) implementation and Joe Taylor (K1JT) work. This code was originally written for AirSpy receiver.
+This non-interactive application allows automatic reporting of WSPR spots on WSPRnet. The idea is to allow the use of small computers like RasberryPi or Beaglebone boards, with a simple daemon. This kind of very lightweight setup could run continuously without maintenance and help to increase the WSPR network. The code is massively based on Steven Franke (K9AN) implementation and Joe Taylor (K1JT) work. This code was originally written for AirSpy receiver.
 
 <h3>WARNING -- Crystal stability</h3>
 Most of RTL dongles use a cheap crystal, and frequency drift can avoid WSPR decoding. The use of no-name RTL dongle for VHF/UHF bands usually require crystal modification, for a better one. External clock could be also used, like GPSDO or rubidium reference clock, aligned on 28.8MHz. 
@@ -18,7 +18,7 @@ https://www.nooelec.com/store/nesdr-smart.html
 - Repeat...
 
 <h3>Howto :</h3>
-1. Install a Linux compatible disto on your device (ex. Raspbian for RaspberryPi)
+1. Install a Linux compatible distro on your device (ex. Raspbian for RaspberryPi)
 2. Install dependencies & useful tools (ex. ntp for time synchronization)
    ex: sudo apt-get install build-essential cmake libfftw3-dev libusb-1.0-0-dev curl libcurl4-gnutls-dev ntp 
 3. Install rtlsdr library : https://github.com/steve-m/librtlsdr
