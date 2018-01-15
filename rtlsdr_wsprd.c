@@ -381,7 +381,7 @@ void initDecoder_options() {
 
 /* Default options for the receiver */
 void initrx_options() {
-    rx_options.gain = 29;
+    rx_options.gain = 290;
     rx_options.autogain = 0;
     rx_options.ppm = 0;
     rx_options.shift = 0;
