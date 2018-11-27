@@ -61,7 +61,7 @@ struct node {
  * and easier than trying to pack them more compactly.
  */
 int encode(
-    unsigned char *symbols,	// Output buffer, 2*nbytes
+    unsigned char *symbols,	// Output buffer, 2*8*nbytes
     unsigned char *data,		// Input buffer, nbytes
     unsigned int nbytes) {	// Number of bytes in data
     unsigned long encstate;
