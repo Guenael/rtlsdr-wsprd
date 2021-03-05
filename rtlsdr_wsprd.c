@@ -246,9 +246,14 @@ void postSpots(uint32_t n_results) {
                 dec_results[i].snr, dec_results[i].dt, dec_results[i].freq,
                 dec_results[i].call, dec_results[i].loc, dec_results[i].pwr);
 
-        printf("Spot : %3.2f %4.2f %10.6f %2d  %-s\n",
-               dec_results[i].snr, dec_results[i].dt, dec_results[i].freq,
-               (int)dec_results[i].drift, dec_results[i].message);
+        time_t rawtime;
+        time ( &rawtime );
+        struct tm *gtm = gmtime(&rawtime);
+		
+        printf("Spot :  %04d-%02d-%02d %02d:%02d:%02d %6.2f %6.2f %10.6f %2d %7s %6s %2s\n",
+                gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min, gtm->tm_sec,
+                dec_results[i].snr, dec_results[i].dt, dec_results[i].freq,
+                (int)dec_results[i].drift, dec_results[i].call, dec_results[i].loc, dec_results[i].pwr);
 
         curl = curl_easy_init();
         if(curl) {
@@ -262,8 +267,16 @@ void postSpots(uint32_t n_results) {
             curl_easy_cleanup(curl);
         }
     }
-    if (n_results == 0)
-        printf("No spot\n");
+
+    if (n_results == 0) {
+
+       time_t rawtime;
+       time ( &rawtime );
+       struct tm *gtm = gmtime(&rawtime);
+
+       printf("No spot %04d-%02d-%02d %02d:%02dz\n",
+	      gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
+	}
 }
 
 
@@ -469,7 +482,10 @@ void usage(void) {
     fprintf(stderr,
             "rtlsdr_wsprd, a simple WSPR daemon for RTL receivers\n\n"
             "Use:\trtlsdr_wsprd -f frequency -c callsign -l locator [options]\n"
-            "\t-f dial frequency [(,k,M) Hz], check http://wsprnet.org/ for freq.\n"
+            "\t-f dial frequency [(,k,M) Hz] or band string\n"
+            "\t   If band string is used, the transmission will happen in the middle of the WSPR region of the selected band.\n"
+            "\t   Bands: LF LF-15 MF MF-15 160m 160m-15 80m 60m 40m 30m 20m 17m 15m 12m 10m 6m 4m 2m\n"
+            "\t   '-15' suffix indicates the WSPR-15 region of band.\n"
             "\t-c your callsign (12 chars max)\n"
             "\t-l your locator grid (6 chars max)\n"
             "Receiver extra options:\n"
@@ -486,7 +502,7 @@ void usage(void) {
             "\t-Q quick mode, doesn't dig deep for weak signals\n"
             "\t-S single pass mode, no subtraction (same as original wsprd)\n"
             "Example:\n"
-            "\trtlsdr_wsprd -f 144.489M -c A1XYZ -l AB12cd -g 29 -o -4200\n");
+            "\trtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29 -o -4200\n");
     exit(1);
 }
 
@@ -517,7 +533,46 @@ int main(int argc, char** argv) {
     while ((opt = getopt(argc, argv, "f:c:l:g:a:o:p:u:d:n:i:H:Q:S")) != -1) {
         switch (opt) {
         case 'f': // Frequency
-            rx_options.dialfreq = (uint32_t)atofs(optarg);
+		    if (!strcasecmp(optarg,"LF")) {
+			  rx_options.dialfreq=136000.0;
+			} else if (!strcasecmp(optarg,"LF-15")) {
+			  rx_options.dialfreq=136112.5;
+			} else if (!strcasecmp(optarg,"MF")) {
+			  rx_options.dialfreq=474200.0;
+			} else if (!strcasecmp(optarg,"MF-15")) {
+			  rx_options.dialfreq=474312.5;
+			} else if (!strcasecmp(optarg,"160m")) {
+			  rx_options.dialfreq=1836600.0;
+			} else if (!strcasecmp(optarg,"160m-15")) {
+			  rx_options.dialfreq=1838212.5;
+			} else if (!strcasecmp(optarg,"80m")) {
+			  rx_options.dialfreq=3592600.0;
+			} else if (!strcasecmp(optarg,"60m")) {
+			  rx_options.dialfreq=5287200.0;
+			} else if (!strcasecmp(optarg,"40m")) {
+			  rx_options.dialfreq=7038600.0;
+			} else if (!strcasecmp(optarg,"30m")) {
+			  rx_options.dialfreq=10138700.0;
+			} else if (!strcasecmp(optarg,"20m")) {
+			  rx_options.dialfreq=14095600.0;
+			} else if (!strcasecmp(optarg,"17m")) {
+			  rx_options.dialfreq=18104600.0;
+			} else if (!strcasecmp(optarg,"15m")) {
+			  rx_options.dialfreq=21094600.0;
+			} else if (!strcasecmp(optarg,"12m")) {
+			  rx_options.dialfreq=24924600.0;
+			} else if (!strcasecmp(optarg,"10m")) {
+			  rx_options.dialfreq=28124600.0;
+			} else if (!strcasecmp(optarg,"6m")) {
+			  rx_options.dialfreq=50293000.0;
+			} else if (!strcasecmp(optarg,"4m")) {
+			  rx_options.dialfreq=70091000.0;
+			} else if (!strcasecmp(optarg,"2m")) {
+			  rx_options.dialfreq=144489000.0;
+			} else {
+			  // Not a string. Parse it as a double.
+			  rx_options.dialfreq=(uint32_t)atofs(optarg);
+			  }
             break;
         case 'c': // Callsign
             sprintf(dec_options.rcall, "%.12s", optarg);
@@ -715,6 +770,8 @@ int main(int argc, char** argv) {
     uint32_t usec  = sec * 1000000 + lTime.tv_usec;
     uint32_t uwait = 120000000 - usec;
     printf("Wait for time sync (start in %d sec)\n\n", uwait/1000000);
+    printf("              Date  Time(z)    SNR     DT       Freq Dr    Call    Loc Pwr\n");
+  /*        Spot :  2021-03-03 10:00:00 -10.96   0.09   7.040130  0  DL4TOM   JN59 33 */
 
     /* Prepare a low priority param for the decoder thread */
     struct sched_param param;
