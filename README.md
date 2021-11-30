@@ -22,7 +22,7 @@ https://www.nooelec.com/store/nesdr-smart.html
 - Repeat...
 
 ## Installation
-  1. Install a Linux compatible disto on your device (ex. Raspbian for RaspberryPi)
+  1. Install a Linux compatible distro on your device (ex. Raspbian for RaspberryPi)
   1. Install dependencies & useful tools (for example, NTP for time synchronization)
      ```
      sudo apt-get install build-essential cmake libfftw3-dev libusb-1.0-0-dev curl libcurl4-gnutls-dev ntp
