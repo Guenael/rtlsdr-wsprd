@@ -126,7 +126,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     //sigIn[i] = (int8_t)((int32_t)samples[i] - 127);
 
     /* Economic mixer @ fs/4 (upper band)
-       At fs/4, sin and cosin calculation are no longueur necessary.
+       At fs/4, sin and cosin calculation are no longer necessary.
 
                0   | pi/2 |  pi  | 3pi/2
              ----------------------------
@@ -170,7 +170,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
             continue;
         }
 
-        // FIXME/TODO : some optimisition here
+        // FIXME/TODO : some optimization here
         /* 1st Comb */
         Iy1  = Ix2 - It1z;
         It1z = It1y;
