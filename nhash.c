@@ -5,7 +5,7 @@
 
  *------------------------------------------------------------------------------
  *
- * This file is part of the WSPR application, Weak Signal Propogation Reporter
+ * This file is part of the WSPR application, Weak Signal Propagation Reporter
  *
  * File Name:   nhash.c
  * Description: Functions to produce 32-bit hashes for hash table lookup
@@ -234,7 +234,7 @@ uint32_t nhash( const void *key, size_t length, uint32_t initval) {
          * rest of the string.  Every machine with memory protection I've seen
          * does it on word boundaries, so is OK with this.  But VALGRIND will
          * still catch it and complain.  The masking trick does make the hash
-         * noticably faster for short strings (like English words).
+         * noticeably faster for short strings (like English words).
          */
 #ifndef VALGRIND
 
