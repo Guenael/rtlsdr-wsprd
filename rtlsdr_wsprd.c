@@ -43,7 +43,7 @@
 #include <rtl-sdr.h>
 
 #include "./rtlsdr_wsprd.h"
-#include "./wsprd.h"
+#include "wsprd/wsprd.h"
 
 
 /* Sampling definition for RTL devices */

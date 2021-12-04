@@ -7,10 +7,10 @@
 #include <stdint.h>
 #include <ctype.h>
 
-#include "wsprsim_utils.h"
-#include "wsprd_utils.h"
-#include "nhash.h"
-#include "fano.h"
+#include "./wsprsim_utils.h"
+#include "./wsprd_utils.h"
+#include "./nhash.h"
+#include "./fano.h"
 
 
 char get_locator_character_code(char ch) {

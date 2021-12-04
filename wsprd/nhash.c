@@ -73,7 +73,7 @@ on 1 byte), but shoehorning those bytes into integers efficiently is messy.
 #include <stdio.h>
 #include <stdint.h>
 
-#include "nhash.h"
+#include "./nhash.h"
 //#include <sys/param.h>  /* attempt to define endianness */
 //#ifdef linux
 //# include <endian.h>    /* attempt to define endianness */
