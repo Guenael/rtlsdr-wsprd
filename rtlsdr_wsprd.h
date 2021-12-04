@@ -33,9 +33,9 @@
 
 
 #ifndef bool
-	typedef uint32_t bool;
-	#define true  1
-	#define false 0
+    typedef uint32_t bool;
+    #define true  1
+    #define false 0
 #endif
 
 
@@ -81,5 +81,4 @@ void initrx_options();
 void sigint_callback_handler(int signum);
 void usage(void);
 int32_t readfile(float *iSamples, float *qSamples, char *filename);
-int32_t writefile(float *iSamples, float *qSamples, char *filename, 
-                  uint32_t type, double freq);
+int32_t writefile(float *iSamples, float *qSamples, char *filename, uint32_t type, double freq);
