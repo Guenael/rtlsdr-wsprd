@@ -50,7 +50,8 @@
 
 
 /* snprintf possible truncation allowed to prevent possible buffer overflow */
-#pragma GCC diagnostic ignored "-Wformat-truncation"
+// Testing clang
+// #pragma GCC diagnostic ignored "-Wformat-truncation"
 
 
 /* Sampling definition for RTL devices */

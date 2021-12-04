@@ -1,5 +1,5 @@
-CC = gcc
-CFLAGS= -Wall -O3 -ffast-math -std=gnu17
+CC = clang
+CFLAGS= -O3 -std=gnu17 -Wall
 LIBS = -lusb-1.0 -lrtlsdr -lpthread -lfftw3f -lcurl -lm
 
 OBJS = rtlsdr_wsprd.o wsprd/wsprd.o wsprd/wsprsim_utils.o wsprd/wsprd_utils.o wsprd/tab.o wsprd/fano.o wsprd/nhash.o

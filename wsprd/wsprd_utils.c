@@ -36,8 +36,8 @@
 #include "./wsprd_utils.h"
 
 // FIXME -- Replace strcpy & strncpy by strcpy to prevent possible buffer overflow
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-#pragma GCC diagnostic ignored "-Wstringop-truncation"
+//#pragma GCC diagnostic ignored "-Wstringop-overflow"
+//#pragma GCC diagnostic ignored "-Wstringop-truncation"
 
 
 void unpack50(signed char *dat, int32_t *n1, int32_t *n2) {
@@ -320,7 +320,7 @@ int unpk_(signed char *message, char *hashtab, char *call_loc_pow, char *call, c
             strncat(pwr, "\0", 1);
         }
     } else if ( ntype < 0 ) {
-        ndbm =- (ntype+1);
+        ndbm = -(ntype+1);
         memset(grid6, 0, sizeof(char)*7);
         strncat(grid6, callsign+5, 1);
         strncat(grid6, callsign, 5);
