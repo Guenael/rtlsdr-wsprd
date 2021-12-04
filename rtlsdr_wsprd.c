@@ -34,7 +34,6 @@
  *
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -44,6 +43,7 @@
 #include <pthread.h>
 #include <curl/curl.h>
 #include <rtl-sdr.h>
+
 
 #include "./rtlsdr_wsprd.h"
 #include "wsprd/wsprd.h"
@@ -85,7 +85,7 @@ struct decoder_state dec;
 
 /* Thread stuff for separate RX (blocking function) */
 struct dongle_state {
-    pthread_t        thread;
+    pthread_t thread;
 };
 struct dongle_state dongle;
 
@@ -110,14 +110,14 @@ static void rtlsdr_callback(unsigned char *samples,
         -0.0034059318,  0.0049745750, -0.0005058826, -0.0027772683
     };
 
-    int8_t *sigIn = (int8_t*)samples;
+    int8_t *sigIn = (int8_t *)samples;
     uint32_t sigLenght = samples_count;
     static uint32_t decimationIndex = 0;
 
     /* CIC buffers */
-    static int32_t  Ix1, Ix2, Qx1, Qx2;
-    static int32_t  Iy1, It1y, It1z, Qy1, Qt1y, Qt1z;
-    static int32_t  Iy2, It2y, It2z, Qy2, Qt2y, Qt2z;
+    static int32_t Ix1, Ix2, Qx1, Qx2;
+    static int32_t Iy1, It1y, It1z, Qy1, Qt1y, Qt1z;
+    static int32_t Iy2, It2y, It2z, Qy2, Qt2y, Qt2z;
 
     /* FIR compensation filter buffers */
     static float firI[32], firQ[32];
@@ -141,17 +141,17 @@ static void rtlsdr_callback(unsigned char *samples,
        (Weaver technique, keep the upper band, IQ inverted on RTL devices)
     */
     int8_t tmp;
-    for (uint32_t i = 0; i < sigLenght; i+=8) {
-        tmp = -sigIn[i+3];
-        sigIn[i+3] = sigIn[i+2];
-        sigIn[i+2] = tmp;
+    for (uint32_t i = 0; i < sigLenght; i += 8) {
+        tmp = -sigIn[i + 3];
+        sigIn[i + 3] = sigIn[i + 2];
+        sigIn[i + 2] = tmp;
 
-        sigIn[i+4] = -sigIn[i+4];
-        sigIn[i+5] = -sigIn[i+5];
+        sigIn[i + 4] = -sigIn[i + 4];
+        sigIn[i + 5] = -sigIn[i + 5];
 
-        tmp = -sigIn[i+6];
-        sigIn[i+6] = sigIn[i+7];
-        sigIn[i+7] = tmp;
+        tmp = -sigIn[i + 6];
+        sigIn[i + 6] = sigIn[i + 7];
+        sigIn[i + 7] = tmp;
     }
 
     /* CIC decimator (N=2)
@@ -160,10 +160,10 @@ static void rtlsdr_callback(unsigned char *samples,
              * Understanding cascaded integrator-comb filters
                http://www.embedded.com/design/configurable-systems/4006446/Understanding-cascaded-integrator-comb-filters
     */
-    for (int32_t i = 0; i < sigLenght/2; i++) {
+    for (int32_t i = 0; i < sigLenght / 2; i++) {
         /* Integrator stages (N=2) */
-        Ix1 += (int32_t)sigIn[i*2];
-        Qx1 += (int32_t)sigIn[i*2+1];
+        Ix1 += (int32_t)sigIn[i * 2];
+        Qx1 += (int32_t)sigIn[i * 2 + 1];
         Ix2 += Ix1;
         Qx2 += Qx1;
 
@@ -197,14 +197,14 @@ static void rtlsdr_callback(unsigned char *samples,
             Isum += firI[j] * zCoef[j];
             Qsum += firQ[j] * zCoef[j];
             if (j < 31) {
-                firI[j] = firI[j+1];
-                firQ[j] = firQ[j+1];
+                firI[j] = firI[j + 1];
+                firQ[j] = firQ[j + 1];
             }
         }
         firI[31] = (float)Iy2;
         firQ[31] = (float)Qy2;
-        Isum += firI[31]*zCoef[32];
-        Qsum += firQ[31]*zCoef[32];
+        Isum += firI[31] * zCoef[32];
+        Qsum += firQ[31] * zCoef[32];
 
         /* Save the result in the buffer */
         if (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE)) {
@@ -246,34 +246,34 @@ void postSpots(uint32_t n_results) {
     time(&rawtime);
     struct tm *gtm = gmtime(&rawtime);
 
-    for (uint32_t i=0; i < n_results; i++) {
-        snprintf(url, sizeof(url)-1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%s&time=%s&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=0.2r_wsprd&mode=2",
-            dec_options.rcall,
-            dec_options.rloc,
-            dec_results[i].freq,
-            dec_options.date,
-            dec_options.uttime,
-            dec_results[i].snr,
-            dec_results[i].dt,
-            dec_results[i].freq,
-            dec_results[i].call,
-            dec_results[i].loc,
-            dec_results[i].pwr);
+    for (uint32_t i = 0; i < n_results; i++) {
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%s&time=%s&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=0.2r_wsprd&mode=2",
+                 dec_options.rcall,
+                 dec_options.rloc,
+                 dec_results[i].freq,
+                 dec_options.date,
+                 dec_options.uttime,
+                 dec_results[i].snr,
+                 dec_results[i].dt,
+                 dec_results[i].freq,
+                 dec_results[i].call,
+                 dec_results[i].loc,
+                 dec_results[i].pwr);
 
         printf("Spot :  %04d-%02d-%02d %02d:%02d:%02d %6.2f %6.2f %10.6f %2d %7s %6s %2s\n",
-                gtm->tm_year + 1900,
-                gtm->tm_mon + 1,
-                gtm->tm_mday,
-                gtm->tm_hour,
-                gtm->tm_min,
-                gtm->tm_sec,
-                dec_results[i].snr,
-                dec_results[i].dt,
-                dec_results[i].freq,
-                (int)dec_results[i].drift,
-                dec_results[i].call,
-                dec_results[i].loc,
-                dec_results[i].pwr);
+               gtm->tm_year + 1900,
+               gtm->tm_mon + 1,
+               gtm->tm_mday,
+               gtm->tm_hour,
+               gtm->tm_min,
+               gtm->tm_sec,
+               dec_results[i].snr,
+               dec_results[i].dt,
+               dec_results[i].freq,
+               (int)dec_results[i].drift,
+               dec_results[i].call,
+               dec_results[i].loc,
+               dec_results[i].pwr);
 
         curl = curl_easy_init();
         if (curl) {
@@ -290,11 +290,11 @@ void postSpots(uint32_t n_results) {
 
     if (n_results == 0) {
         printf("No spot %04d-%02d-%02d %02d:%02dz\n",
-            gtm->tm_year + 1900,
-            gtm->tm_mon + 1,
-            gtm->tm_mday,
-            gtm->tm_hour,
-            gtm->tm_min);
+               gtm->tm_year + 1900,
+               gtm->tm_mon + 1,
+               gtm->tm_mday,
+               gtm->tm_hour,
+               gtm->tm_min);
     }
 }
 
@@ -305,8 +305,8 @@ static void *wsprDecoder(void *arg) {
        Real = 375 * 116 = 43500
        FIXME with SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE ??
     */
-    static float iSamples[45000]= {0};
-    static float qSamples[45000]= {0};
+    static float iSamples[45000] = {0};
+    static float qSamples[45000] = {0};
     static uint32_t samples_len;
     int32_t n_results = 0;
 
@@ -348,8 +348,8 @@ double atofs(char *s) {
     uint32_t len;
     double suff = 1.0;
     len = strlen(s);
-    last = s[len-1];
-    s[len-1] = '\0';
+    last = s[len - 1];
+    s[len - 1] = '\0';
 
     switch (last) {
         case 'g':
@@ -362,25 +362,25 @@ double atofs(char *s) {
         case 'K':
             suff *= 1e3;
             suff *= atof(s);
-            s[len-1] = last;
+            s[len - 1] = last;
             return suff;
     }
-    s[len-1] = last;
+    s[len - 1] = last;
     return atof(s);
 }
 
 
-int32_t parse_u64(char* s, uint64_t* const value) {
+int32_t parse_u64(char *s, uint64_t *const value) {
     uint_fast8_t base = 10;
-    char* s_end;
+    char *s_end;
     uint64_t u64_value;
 
     if (strlen(s) > 2) {
         if (s[0] == '0') {
-            if ( (s[1] == 'x') || (s[1] == 'X') ) {
+            if ((s[1] == 'x') || (s[1] == 'X')) {
                 base = 16;
                 s += 2;
-            } else if ( (s[1] == 'b') || (s[1] == 'B') ) {
+            } else if ((s[1] == 'b') || (s[1] == 'B')) {
                 base = 2;
                 s += 2;
             }
@@ -389,7 +389,7 @@ int32_t parse_u64(char* s, uint64_t* const value) {
 
     s_end = s;
     u64_value = strtoull(s, &s_end, base);
-    if ( (s != s_end) && (*s_end == 0) ) {
+    if ((s != s_end) && (*s_end == 0)) {
         *value = u64_value;
         return 1;
     } else {
@@ -433,8 +433,8 @@ void sigint_callback_handler(int signum) {
 
 
 int32_t readfile(float *iSamples, float *qSamples, char *filename) {
-    FILE* fd = NULL;
-    float filebuffer[2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE];
+    FILE *fd = NULL;
+    float filebuffer[2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
 
     fd = fopen(filename, "rb");
     if (fd == NULL) {
@@ -449,16 +449,16 @@ int32_t readfile(float *iSamples, float *qSamples, char *filename) {
         return 1;
     }
 
-    int32_t nread = fread(filebuffer, sizeof(float), 2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE, fd);
-    if (nread != 2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE) {
+    int32_t nread = fread(filebuffer, sizeof(float), 2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE, fd);
+    if (nread != 2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) {
         fprintf(stderr, "Cannot read all the data!\n");
         fclose(fd);
         return 1;
     }
 
-    for (int32_t i=0; i < SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE; i++) {
-        iSamples[i] =  filebuffer[2*i];
-        qSamples[i] = -filebuffer[2*i+1];
+    for (int32_t i = 0; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
+        iSamples[i] = filebuffer[2 * i];
+        qSamples[i] = -filebuffer[2 * i + 1];
     }
 
     fclose(fd);
@@ -468,13 +468,13 @@ int32_t readfile(float *iSamples, float *qSamples, char *filename) {
 
 
 int32_t writefile(float *iSamples, float *qSamples, char *filename, uint32_t type, double freq) {
-    FILE* fd = NULL;
+    FILE *fd = NULL;
     char info[15] = {};  // Info descriptor, not used for now
 
-    float filebuffer[2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE];
-    for (int32_t i=0; i < SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE; i++) {
-        filebuffer[2*i]   =  iSamples[i];
-        filebuffer[2*i+1] = -qSamples[i];
+    float filebuffer[2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
+    for (int32_t i = 0; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
+        filebuffer[2 * i] = iSamples[i];
+        filebuffer[2 * i + 1] = -qSamples[i];
     }
 
     fd = fopen(filename, "wb");
@@ -488,8 +488,8 @@ int32_t writefile(float *iSamples, float *qSamples, char *filename, uint32_t typ
     fwrite(&type, sizeof(uint32_t), 1, fd);
     fwrite(&freq, sizeof(double), 1, fd);
 
-    int32_t nwrite = fwrite(filebuffer, sizeof(float), 2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE, fd);
-    if (nwrite != 2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE) {
+    int32_t nwrite = fwrite(filebuffer, sizeof(float), 2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE, fd);
+    if (nwrite != 2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) {
         fprintf(stderr, "Cannot write all the data!\n");
         return 1;
     }
@@ -529,22 +529,22 @@ void usage(void) {
 }
 
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     uint32_t opt;
 
-    int32_t  rtl_result;
-    int32_t  rtl_count;
-    char     rtl_vendor[256], rtl_product[256], rtl_serial[256];
+    int32_t rtl_result;
+    int32_t rtl_count;
+    char    rtl_vendor[256], rtl_product[256], rtl_serial[256];
 
     initrx_options();
     initDecoder_options();
 
     /* RX buffer allocation */
-    rx_state.iSamples = malloc(sizeof(float)*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE);
-    rx_state.qSamples = malloc(sizeof(float)*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE);
+    rx_state.iSamples = malloc(sizeof(float) * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE);
+    rx_state.qSamples = malloc(sizeof(float) * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE);
 
     /* Stop condition setup */
-    rx_state.exit_flag   = false;
+    rx_state.exit_flag = false;
     rx_state.decode_flag = false;
     uint32_t nLoop = 0;
 
@@ -553,101 +553,101 @@ int main(int argc, char** argv) {
 
     while ((opt = getopt(argc, argv, "f:c:l:g:a:o:p:u:d:n:i:H:Q:S")) != -1) {
         switch (opt) {
-        case 'f':  // Frequency
-            if (!strcasecmp(optarg, "LF")) {
-                rx_options.dialfreq = 136000;
-            } else if (!strcasecmp(optarg, "LF-15")) {
-                rx_options.dialfreq = 136112;
-            } else if (!strcasecmp(optarg, "MF")) {
-                rx_options.dialfreq = 474200;
-            } else if (!strcasecmp(optarg, "MF-15")) {
-                rx_options.dialfreq = 474312;
-            } else if (!strcasecmp(optarg, "160m")) {
-                rx_options.dialfreq = 1836600;
-            } else if (!strcasecmp(optarg, "160m-15")) {
-                rx_options.dialfreq = 1838212;
-            } else if (!strcasecmp(optarg, "80m")) {
-                rx_options.dialfreq = 3592600;
-            } else if (!strcasecmp(optarg, "60m")) {
-                rx_options.dialfreq = 5287200;
-            } else if (!strcasecmp(optarg, "40m")) {
-                rx_options.dialfreq = 7038600;
-            } else if (!strcasecmp(optarg, "30m")) {
-                rx_options.dialfreq = 10138700;
-            } else if (!strcasecmp(optarg, "20m")) {
-                rx_options.dialfreq = 14095600;
-            } else if (!strcasecmp(optarg, "17m")) {
-                rx_options.dialfreq = 18104600;
-            } else if (!strcasecmp(optarg, "15m")) {
-                rx_options.dialfreq = 21094600;
-            } else if (!strcasecmp(optarg, "12m")) {
-                rx_options.dialfreq = 24924600;
-            } else if (!strcasecmp(optarg, "10m")) {
-                rx_options.dialfreq = 28124600;
-            } else if (!strcasecmp(optarg, "6m")) {
-                rx_options.dialfreq = 50293000;
-            } else if (!strcasecmp(optarg, "4m")) {
-                rx_options.dialfreq = 70091000;
-            } else if (!strcasecmp(optarg, "2m")) {
-                rx_options.dialfreq = 144489000;
-            } else if (!strcasecmp(optarg, "1m25")) {
-                rx_options.dialfreq = 222280000;
-            } else if (!strcasecmp(optarg, "70cm")) {
-                rx_options.dialfreq = 432300000;
-            } else if (!strcasecmp(optarg, "23cm")) {
-                rx_options.dialfreq = 1296500000;
-            } else {
-                rx_options.dialfreq = (uint32_t)atofs(optarg);
-            }
-            break;
-        case 'c':  // Callsign
-            snprintf(dec_options.rcall, sizeof(dec_options.rcall), "%.12s", optarg);
-            break;
-        case 'l':  // Locator / Grid
-            snprintf(dec_options.rloc, sizeof(dec_options.rloc),  "%.6s", optarg);
-            break;
-        case 'g':  // Small signal amplifier gain
-            rx_options.gain = atoi(optarg);
-            if (rx_options.gain < 0) rx_options.gain = 0;
-            if (rx_options.gain > 49) rx_options.gain = 49;
-            rx_options.gain *= 10;
-            break;
-        case 'a':  // Auto gain
-            rx_options.autogain = atoi(optarg);
-            if (rx_options.autogain < 0) rx_options.autogain = 0;
-            if (rx_options.autogain > 1) rx_options.autogain = 1;
-            break;
-        case 'o':  // Fine frequency correction
-            rx_options.shift = atoi(optarg);
-            break;
-        case 'p':
-            rx_options.ppm = atoi(optarg);
-            break;
-        case 'u':  // Upconverter frequency
-            rx_options.upconverter = (uint32_t)atofs(optarg);
-            break;
-        case 'd':  // Direct Sampling
-            rx_options.directsampling = (uint32_t)atofs(optarg);
-            break;
-        case 'n':  // Stop after n iterations
-            rx_options.maxloop = (uint32_t)atofs(optarg);
-            break;
-        case 'i':  // Select the device to use
-            rx_options.device = (uint32_t)atofs(optarg);
-            break;
-        case 'H':  // Decoder option, use a hastable
-            dec_options.usehashtable = 1;
-            break;
-        case 'Q':  // Decoder option, faster
-            dec_options.quickmode = 1;
-            break;
-        case 'S':  // Decoder option, single pass mode (same as original wsprd)
-            dec_options.subtraction = 0;
-            dec_options.npasses = 1;
-            break;
-        default:
-            usage();
-            break;
+            case 'f':  // Frequency
+                if (!strcasecmp(optarg, "LF")) {
+                    rx_options.dialfreq = 136000;
+                } else if (!strcasecmp(optarg, "LF-15")) {
+                    rx_options.dialfreq = 136112;
+                } else if (!strcasecmp(optarg, "MF")) {
+                    rx_options.dialfreq = 474200;
+                } else if (!strcasecmp(optarg, "MF-15")) {
+                    rx_options.dialfreq = 474312;
+                } else if (!strcasecmp(optarg, "160m")) {
+                    rx_options.dialfreq = 1836600;
+                } else if (!strcasecmp(optarg, "160m-15")) {
+                    rx_options.dialfreq = 1838212;
+                } else if (!strcasecmp(optarg, "80m")) {
+                    rx_options.dialfreq = 3592600;
+                } else if (!strcasecmp(optarg, "60m")) {
+                    rx_options.dialfreq = 5287200;
+                } else if (!strcasecmp(optarg, "40m")) {
+                    rx_options.dialfreq = 7038600;
+                } else if (!strcasecmp(optarg, "30m")) {
+                    rx_options.dialfreq = 10138700;
+                } else if (!strcasecmp(optarg, "20m")) {
+                    rx_options.dialfreq = 14095600;
+                } else if (!strcasecmp(optarg, "17m")) {
+                    rx_options.dialfreq = 18104600;
+                } else if (!strcasecmp(optarg, "15m")) {
+                    rx_options.dialfreq = 21094600;
+                } else if (!strcasecmp(optarg, "12m")) {
+                    rx_options.dialfreq = 24924600;
+                } else if (!strcasecmp(optarg, "10m")) {
+                    rx_options.dialfreq = 28124600;
+                } else if (!strcasecmp(optarg, "6m")) {
+                    rx_options.dialfreq = 50293000;
+                } else if (!strcasecmp(optarg, "4m")) {
+                    rx_options.dialfreq = 70091000;
+                } else if (!strcasecmp(optarg, "2m")) {
+                    rx_options.dialfreq = 144489000;
+                } else if (!strcasecmp(optarg, "1m25")) {
+                    rx_options.dialfreq = 222280000;
+                } else if (!strcasecmp(optarg, "70cm")) {
+                    rx_options.dialfreq = 432300000;
+                } else if (!strcasecmp(optarg, "23cm")) {
+                    rx_options.dialfreq = 1296500000;
+                } else {
+                    rx_options.dialfreq = (uint32_t)atofs(optarg);
+                }
+                break;
+            case 'c':  // Callsign
+                snprintf(dec_options.rcall, sizeof(dec_options.rcall), "%.12s", optarg);
+                break;
+            case 'l':  // Locator / Grid
+                snprintf(dec_options.rloc, sizeof(dec_options.rloc), "%.6s", optarg);
+                break;
+            case 'g':  // Small signal amplifier gain
+                rx_options.gain = atoi(optarg);
+                if (rx_options.gain < 0) rx_options.gain = 0;
+                if (rx_options.gain > 49) rx_options.gain = 49;
+                rx_options.gain *= 10;
+                break;
+            case 'a':  // Auto gain
+                rx_options.autogain = atoi(optarg);
+                if (rx_options.autogain < 0) rx_options.autogain = 0;
+                if (rx_options.autogain > 1) rx_options.autogain = 1;
+                break;
+            case 'o':  // Fine frequency correction
+                rx_options.shift = atoi(optarg);
+                break;
+            case 'p':
+                rx_options.ppm = atoi(optarg);
+                break;
+            case 'u':  // Upconverter frequency
+                rx_options.upconverter = (uint32_t)atofs(optarg);
+                break;
+            case 'd':  // Direct Sampling
+                rx_options.directsampling = (uint32_t)atofs(optarg);
+                break;
+            case 'n':  // Stop after n iterations
+                rx_options.maxloop = (uint32_t)atofs(optarg);
+                break;
+            case 'i':  // Select the device to use
+                rx_options.device = (uint32_t)atofs(optarg);
+                break;
+            case 'H':  // Decoder option, use a hastable
+                dec_options.usehashtable = 1;
+                break;
+            case 'Q':  // Decoder option, faster
+                dec_options.quickmode = 1;
+                break;
+            case 'S':  // Decoder option, single pass mode (same as original wsprd)
+                dec_options.subtraction = 0;
+                dec_options.npasses = 1;
+                break;
+            default:
+                usage();
+                break;
         }
     }
 
@@ -690,14 +690,12 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-
     fprintf(stderr, "Found %d device(s):\n", rtl_count);
-    for (uint32_t i=0; i < rtl_count; i++) {
+    for (uint32_t i = 0; i < rtl_count; i++) {
         rtlsdr_get_device_usb_strings(i, rtl_vendor, rtl_product, rtl_serial);
         fprintf(stderr, "  %d:  %s, %s, SN: %s\n", i, rtl_vendor, rtl_product, rtl_serial);
     }
     fprintf(stderr, "\nUsing device %d: %s\n", rx_options.device, rtlsdr_get_device_name(rx_options.device));
-
 
     rtl_result = rtlsdr_open(&rtl_device, rx_options.device);
     if (rtl_result < 0) {
@@ -721,14 +719,12 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-
     rtl_result = rtlsdr_set_tuner_gain_mode(rtl_device, 1);
     if (rtl_result < 0) {
         fprintf(stderr, "ERROR: Failed to enable manual gain\n");
         rtlsdr_close(rtl_device);
         return EXIT_FAILURE;
     }
-
 
     if (rx_options.autogain) {
         rtl_result = rtlsdr_set_tuner_gain_mode(rtl_device, 0);
@@ -746,7 +742,6 @@ int main(int argc, char** argv) {
         }
     }
 
-
     if (rx_options.ppm != 0) {
         rtl_result = rtlsdr_set_freq_correction(rtl_device, rx_options.ppm);
         if (rtl_result < 0) {
@@ -756,7 +751,6 @@ int main(int argc, char** argv) {
         }
     }
 
-
     rtl_result = rtlsdr_set_center_freq(rtl_device, rx_options.realfreq + FS4_RATE + 1500);
     if (rtl_result < 0) {
         fprintf(stderr, "ERROR: Failed to set frequency\n");
@@ -764,14 +758,12 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-
     rtl_result = rtlsdr_reset_buffer(rtl_device);
     if (rtl_result < 0) {
         fprintf(stderr, "ERROR: Failed to reset buffers.\n");
         rtlsdr_close(rtl_device);
         return EXIT_FAILURE;
     }
-
 
     /* Print used parameter */
     time_t rawtime;
@@ -788,16 +780,15 @@ int main(int argc, char** argv) {
     if (rx_options.autogain)
         printf("  Auto gain    : enable\n");
     else
-        printf("  Gain         : %d dB\n", rx_options.gain/10);
-
+        printf("  Gain         : %d dB\n", rx_options.gain / 10);
 
     /* Time alignment stuff */
     struct timeval lTime;
     gettimeofday(&lTime, NULL);
-    uint32_t sec   = lTime.tv_sec % 120;
-    uint32_t usec  = sec * 1000000 + lTime.tv_usec;
+    uint32_t sec = lTime.tv_sec % 120;
+    uint32_t usec = sec * 1000000 + lTime.tv_usec;
     uint32_t uwait = 120000000 - usec;
-    printf("Wait for time sync (start in %d sec)\n\n", uwait/1000000);
+    printf("Wait for time sync (start in %d sec)\n\n", uwait / 1000000);
     printf("              Date  Time(z)    SNR     DT       Freq Dr    Call    Loc Pwr\n");
 
     /* Prepare a low priority param for the decoder thread */
@@ -817,13 +808,12 @@ int main(int argc, char** argv) {
     pthread_create(&dongle.thread, NULL, rtlsdr_rx, NULL);
     pthread_create(&dec.thread, &dec.tattr, wsprDecoder, NULL);
 
-
     /* Main loop : Wait, read, decode */
     while (!rx_state.exit_flag && !(rx_options.maxloop && (nLoop >= rx_options.maxloop))) {
         /* Wait for time Sync on 2 mins */
         gettimeofday(&lTime, NULL);
-        sec   = lTime.tv_sec % 120;
-        usec  = sec * 1000000 + lTime.tv_usec;
+        sec = lTime.tv_sec % 120;
+        usec = sec * 1000000 + lTime.tv_usec;
         uwait = 120000000 - usec + 10000;  // Adding 10ms, to be sure to reach this next minute
         usleep(uwait);
 
@@ -837,8 +827,8 @@ int main(int argc, char** argv) {
         /* Start to store the samples */
         initSampleStorage();
 
-        while ( (rx_state.exit_flag == false) &&
-                (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) ) ) {
+        while ((rx_state.exit_flag == false) &&
+               (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE))) {
             usleep(250000);
         }
         nLoop++;

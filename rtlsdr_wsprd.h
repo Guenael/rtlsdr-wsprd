@@ -25,16 +25,13 @@
  *
  */
 
-
 #pragma once
-
 
 #include <unistd.h>
 
-
 #ifndef bool
     typedef uint32_t bool;
-    #define true  1
+    #define true 1
     #define false 0
 #endif
 
@@ -69,12 +66,13 @@ struct receiver_options {
     char     uttime[5];
 };
 
+
 static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void *ctx);
 static void *rtlsdr_rx(void *arg);
 void postSpots(uint32_t n_results);
 static void *wsprDecoder(void *arg);
 double atofs(char *s);
-int32_t parse_u64(char* s, uint64_t* const value);
+int32_t parse_u64(char *s, uint64_t *const value);
 void initSampleStorage();
 void initDecoder_options();
 void initrx_options();

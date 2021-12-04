@@ -32,12 +32,13 @@ extern unsigned char Partab[];
  * POLY1 goes into the 2-bit of sym, and the symbol generated from POLY2
  * goes into the 1-bit.
  */
-#define	ENCODE(sym, encstate) {\
-    unsigned long _tmp;\
-    _tmp = (encstate) & POLY1;\
-    _tmp ^= _tmp >> 16;\
-    (sym) = Partab[(_tmp ^ (_tmp >> 8)) & 0xff] << 1;\
-    _tmp = (encstate) & POLY2;\
-    _tmp ^= _tmp >> 16;\
-    (sym) |= Partab[(_tmp ^ (_tmp >> 8)) & 0xff];\
-}
+#define ENCODE(sym, encstate)                             \
+    {                                                     \
+        unsigned long _tmp;                               \
+        _tmp = (encstate)&POLY1;                          \
+        _tmp ^= _tmp >> 16;                               \
+        (sym) = Partab[(_tmp ^ (_tmp >> 8)) & 0xff] << 1; \
+        _tmp = (encstate)&POLY2;                          \
+        _tmp ^= _tmp >> 16;                               \
+        (sym) |= Partab[(_tmp ^ (_tmp >> 8)) & 0xff];     \
+    }
