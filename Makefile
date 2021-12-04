@@ -18,3 +18,6 @@ rtlsdr_wsprd: $(OBJS)
 
 clean:
 	rm -f *.o wsprd/*.o $(TARGETS) wspr_wisdom.dat hashtable.txt
+
+install:
+	install rtlsdr_wsprd /usr/local/lib/rtlsdr_wsprd
