@@ -37,12 +37,12 @@
 #include <string.h>
 #include <fftw3.h>
 
-#include "wsprd.h"
-#include "fano.h"
-#include "nhash.h"
-#include "wsprd_utils.h"
-#include "wsprsim_utils.h"
-#include "metric_tables.h"
+#include "./wsprd.h"
+#include "./fano.h"
+#include "./nhash.h"
+#include "./wsprd_utils.h"
+#include "./wsprsim_utils.h"
+#include "./metric_tables.h"
 
 
 #define DF       375.0 / 256.0
