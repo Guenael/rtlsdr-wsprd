@@ -46,6 +46,10 @@
 #include "wsprd/wsprd.h"
 
 
+/* snprintf possible truncation allowed to prevent possible buffer overflow */
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+
+
 /* Sampling definition for RTL devices */
 #define SIGNAL_LENGHT       116
 #define SIGNAL_SAMPLE_RATE  375

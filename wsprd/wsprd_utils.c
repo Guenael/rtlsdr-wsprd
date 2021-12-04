@@ -35,6 +35,10 @@
 #include "./nhash.h"
 #include "./wsprd_utils.h"
 
+// FIXME -- Replace strcpy & strncpy by strcpy to prevent possible buffer overflow
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+
 
 void unpack50(signed char *dat, int32_t *n1, int32_t *n2) {
     int32_t i, i4;
