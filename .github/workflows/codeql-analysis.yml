@@ -34,12 +34,13 @@ jobs:
 
     - name: Install dependencies and build
       run: |
-        sudo apt-get update
-        sudo apt-get install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev
+        sudo apt-get -y update
+        sudo apt-get -y install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev cppcheck
         make
 
-    # - name: Autobuild
-    #  uses: github/codeql-action/autobuild@v1
+    - name: SAST check (C/C++ code analysis)
+      run: |
+        cppcheck --std=c11 *.c wsprd/*.c
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
