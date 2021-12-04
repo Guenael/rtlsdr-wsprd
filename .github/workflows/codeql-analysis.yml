@@ -1,4 +1,4 @@
-name: "CodeQL"
+name: "CI"
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   analyze:
-    name: Analyze
+    name: Build-Analyze
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -35,12 +35,19 @@ jobs:
     - name: Install dependencies and build
       run: |
         sudo apt-get -y update
-        sudo apt-get -y install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev cppcheck
+        sudo apt-get -y install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev cppcheck iwyu
         make
 
     - name: SAST check (C/C++ code analysis)
       run: |
+        echo "===== CPPCHECK ====="
         cppcheck --std=c11 *.c wsprd/*.c
+
+    - name: Cpplint check (formatting & best-practice check)
+      run: |
+        pip install cpplint
+        echo "===== CPPLINT ====="
+        cpplint --linelength=1000 --extensions=c --headers=h --recursive * || true
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
