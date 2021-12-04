@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-This project aim at decoding FT8 signals using an RTL device, usually connected to a Raspeberry Pi.
+This project aim at decoding FT8 signals using an RTL device, usually connected to a Raspberry Pi.
 To install and use your dongle on a Raspberry Pi with a Rasberian OS:
 
 ```
@@ -16,7 +16,7 @@ rtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29
 
 ## Overview
 
-This non-interactive application allows automatic reporting of WSPR spots on WSPRnet. The initial idea was to allow a small computer like a Raspberry Pi and a RTL-SDR device to sent WSPR reports for VHF/UHF bands. This kind of lightweight setup could run continuously without maintenance and help to get additional propagation reports. The code is massively based on Steven Franke (K9AN) implementation of Joe Taylor (K1JT) publication and work.
+This non-interactive application allows automatic reporting of WSPR spots on WSPRnet. The initial idea was to allow a small computer like a Raspberry Pi and a RTL-SDR device to send WSPR reports for VHF/UHF bands. This kind of lightweight setup could run continuously without maintenance and help to get additional propagation reports. The code is massively based on Steven Franke (K9AN) implementation of Joe Taylor (K1JT) publication and work.
 
 This application written in C does:
 
@@ -59,7 +59,7 @@ This application written in C does:
     /opt/vc/bin/tvservice -o
     ```
   - Remove unused modules (for example, /etc/modules: #snd-bcm2835)
-  - Use an enclose, and ground it
+  - Use an enclosure, and ground it
 
 
 ## Crystal stability
