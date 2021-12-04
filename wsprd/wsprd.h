@@ -35,41 +35,39 @@
 
 /* Option & config of decoder (Shared with the wsprd code) */
 struct decoder_options {
-    uint32_t freq;         // Dial frequency
-    char     rcall[13];    // Callsign of the RX station
-    char     rloc[7];      // Locator of the RX station
-    char     date[7];      // Date & time of the processes samples
-    char     uttime[5];    //  ''
-    uint32_t quickmode;    // Decoder option & tweak
-    uint32_t usehashtable; //  ''
-    uint32_t npasses;      //  ''
-    uint32_t subtraction;  //  ''
+    uint32_t freq;          // Dial frequency
+    char rcall[13];         // Callsign of the RX station
+    char rloc[7];           // Locator of the RX station
+    char date[7];           // Date & time of the processes samples
+    char uttime[5];         //  ''
+    uint32_t quickmode;     // Decoder option & tweak
+    uint32_t usehashtable;  //  ''
+    uint32_t npasses;       //  ''
+    uint32_t subtraction;   //  ''
 };
-
 
 struct decoder_results {
-    double   freq;
-    float    sync;
-    float    snr;
-    float    dt;
-    float    drift;
-    int32_t  jitter;
-    char     message[23];
-    char     call[13];
-    char     loc[7];
-    char     pwr[3];
+    double freq;
+    float sync;
+    float snr;
+    float dt;
+    float drift;
+    int32_t jitter;
+    char message[23];
+    char call[13];
+    char loc[7];
+    char pwr[3];
     uint32_t cycles;
 };
-
 
 void sync_and_demodulate(float *id, float *qd, long np,
                          uint8_t *symbols, float *freq1, float fstep,
                          int32_t *shift1, int32_t lagmin, int32_t lagmax, int32_t lagstep,
                          float *drift1, int32_t symfac, float *sync, int32_t mode);
 void subtract_signal(float *id, float *qd, long np,
-                     float f0, int32_t shift0, float drift0, uint8_t* channel_symbols);
+                     float f0, int32_t shift0, float drift0, uint8_t *channel_symbols);
 void subtract_signal2(float *id, float *qd, long np,
-                      float f0, int32_t shift0, float drift0, uint8_t* channel_symbols);
+                      float f0, int32_t shift0, float drift0, uint8_t *channel_symbols);
 int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
                     struct decoder_options options, struct decoder_results *decodes,
                     int32_t *n_results);
