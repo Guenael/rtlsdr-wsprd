@@ -34,8 +34,8 @@ jobs:
 
     - name: Install dependencies and build
       run: |
-        apt-get update
-        apt-get install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev
+        sudo apt-get update
+        sudo apt-get install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev
         make
 
     # - name: Autobuild
