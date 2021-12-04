@@ -1,14 +1,16 @@
 /*
  * FreeBSD License
- * Copyright (c) 2016, Guenael
+ * Copyright (c) 2016-2021, Guenael Jouchet (VA2GKA)
  * All rights reserved.
  *
- * This file is based on rtl-sdr project, contribution :
- *   Copyright (C) 2012 by Steve Markgraf <steve{at}steve-m.de>
- *   Copyright (C) 2012 by Hoernchen <la{at}tfc-server.de>
- *   Copyright (C) 2012 by Kyle Keen <keenerd{at}gmail.com>
- *   Copyright (C) 2013 by Elias Oenal <EliasOenal{at}gmail.com>
- *   Copyright (C) 2016 by Guenael Jouchet <guenael{at}jouchet.ca>
+ * This file is based on rtl-sdr project code and libraries:
+ *   Github repository: https://github.com/osmocom/rtl-sdr
+ *   Project web-page:  https://osmocom.org/projects/rtl-sdr/wiki
+ *   Contributions:
+ *     Copyright (C) 2012 by Steve Markgraf <steve{at}steve-m.de>
+ *     Copyright (C) 2012 by Hoernchen <la{at}tfc-server.de>
+ *     Copyright (C) 2012 by Kyle Keen <keenerd{at}gmail.com>
+ *     Copyright (C) 2013 by Elias Oenal <EliasOenal{at}gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -48,7 +50,8 @@
 
 
 /* snprintf possible truncation allowed to prevent possible buffer overflow */
-#pragma GCC diagnostic ignored "-Wformat-truncation"
+// Testing clang
+// #pragma GCC diagnostic ignored "-Wformat-truncation"
 
 
 /* Sampling definition for RTL devices */

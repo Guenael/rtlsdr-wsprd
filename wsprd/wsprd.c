@@ -629,12 +629,12 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
         int32_t idrift, ifr, if0, ifd, k0;
         int32_t kindex;
         float   smax, ss, pow, p0, p1, p2, p3;
-        for(j=0; j<npk; j++) {                                              //For each candidate...
+        for(j=0; j<npk; j++) {                                                //For each candidate...
             smax = -1e30;
             if0 = freq0[j]/(DF/2.0)+NSPERSYM;
-            for (ifr=if0-1; ifr<=if0+1; ifr++) {                            //Freq search
-                for( k0=-10; k0<22; k0++) {                                 //Time search
-                    for (idrift =- maxdrift; idrift<=maxdrift; idrift++) {  //Drift search
+            for (ifr=if0-1; ifr<=if0+1; ifr++) {                              //Freq search
+                for( k0=-10; k0<22; k0++) {                                   //Time search
+                    for (idrift = -maxdrift; idrift <= maxdrift; idrift++) {  //Drift search
                         ss = 0.0;
                         pow = 0.0;
                         for (k=0; k<NSYM; k++) {                            //Sum over symbols
