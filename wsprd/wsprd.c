@@ -479,17 +479,15 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
         w[i]=sinf(0.006147931*i);
     }
 
-    if( options.usehashtable ) {
+    if ( options.usehashtable ) {
         char line[80], hcall[12];
-        if( (fhash=fopen("hashtable.txt","r+")) ) {
+        if ( (fhash=fopen("hashtable.txt","r+")) ) {
             while (fgets(line, sizeof(line), fhash) != NULL) {
                 sscanf(line,"%d %s",&nh,hcall);
                 strcpy(hashtab+nh*13,hcall);
             }
-        } else {
-            fhash=fopen("hashtable.txt","w+");
-        }
         fclose(fhash);
+        }
     }
 
     // Main loop starts here

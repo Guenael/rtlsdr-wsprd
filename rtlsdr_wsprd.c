@@ -445,12 +445,14 @@ int32_t readfile(float *iSamples, float *qSamples, char *filename) {
     int32_t res = fseek(fd, 26, SEEK_SET);
     if (res) {
         fprintf(stderr, "Cannot set file offset...\n");
+        fclose(fd);
         return 1;
     }
 
     int32_t nread = fread(filebuffer, sizeof(float), 2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE, fd);
     if (nread != 2*SIGNAL_LENGHT*SIGNAL_SAMPLE_RATE) {
         fprintf(stderr, "Cannot read all the data!\n");
+        fclose(fd);
         return 1;
     }
 
