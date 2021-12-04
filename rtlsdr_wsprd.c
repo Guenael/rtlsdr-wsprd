@@ -4,10 +4,11 @@
  * All rights reserved.
  *
  * This file is based on rtl-sdr project, contribution :
- *   Copyright (C) 2012 by Steve Markgraf <steve@steve-m.de>
- *   Copyright (C) 2012 by Hoernchen <la@tfc-server.de>
- *   Copyright (C) 2012 by Kyle Keen <keenerd@gmail.com>
- *   Copyright (C) 2013 by Elias Oenal <EliasOenal@gmail.com>
+ *   Copyright (C) 2012 by Steve Markgraf <steve{at}steve-m.de>
+ *   Copyright (C) 2012 by Hoernchen <la{at}tfc-server.de>
+ *   Copyright (C) 2012 by Kyle Keen <keenerd{at}gmail.com>
+ *   Copyright (C) 2013 by Elias Oenal <EliasOenal{at}gmail.com>
+ *   Copyright (C) 2016 by Guenael Jouchet <guenael{at}jouchet.ca>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -37,7 +38,7 @@
 #include <signal.h>
 #include <math.h>
 #include <string.h>
-#include <time.h>  // #include <sys/time.h>
+#include <time.h>
 #include <pthread.h>
 #include <curl/curl.h>
 #include <rtl-sdr.h>
@@ -549,50 +550,49 @@ int main(int argc, char** argv) {
         switch (opt) {
         case 'f':  // Frequency
             if (!strcasecmp(optarg, "LF")) {
-                rx_options.dialfreq = 136000.0;
+                rx_options.dialfreq = 136000;
             } else if (!strcasecmp(optarg, "LF-15")) {
-                rx_options.dialfreq = 136112.5;
+                rx_options.dialfreq = 136112;
             } else if (!strcasecmp(optarg, "MF")) {
-                rx_options.dialfreq = 474200.0;
+                rx_options.dialfreq = 474200;
             } else if (!strcasecmp(optarg, "MF-15")) {
-                rx_options.dialfreq = 474312.5;
+                rx_options.dialfreq = 474312;
             } else if (!strcasecmp(optarg, "160m")) {
-                rx_options.dialfreq = 1836600.0;
+                rx_options.dialfreq = 1836600;
             } else if (!strcasecmp(optarg, "160m-15")) {
-                rx_options.dialfreq = 1838212.5;
+                rx_options.dialfreq = 1838212;
             } else if (!strcasecmp(optarg, "80m")) {
-                rx_options.dialfreq = 3592600.0;
+                rx_options.dialfreq = 3592600;
             } else if (!strcasecmp(optarg, "60m")) {
-                rx_options.dialfreq = 5287200.0;
-             } else if (!strcasecmp(optarg, "40m")) {
-                rx_options.dialfreq = 7038600.0;
+                rx_options.dialfreq = 5287200;
+            } else if (!strcasecmp(optarg, "40m")) {
+                rx_options.dialfreq = 7038600;
             } else if (!strcasecmp(optarg, "30m")) {
-                rx_options.dialfreq = 10138700.0;
+                rx_options.dialfreq = 10138700;
             } else if (!strcasecmp(optarg, "20m")) {
-                rx_options.dialfreq = 14095600.0;
+                rx_options.dialfreq = 14095600;
             } else if (!strcasecmp(optarg, "17m")) {
-                rx_options.dialfreq = 18104600.0;
+                rx_options.dialfreq = 18104600;
             } else if (!strcasecmp(optarg, "15m")) {
-                rx_options.dialfreq = 21094600.0;
+                rx_options.dialfreq = 21094600;
             } else if (!strcasecmp(optarg, "12m")) {
-                rx_options.dialfreq = 24924600.0;
+                rx_options.dialfreq = 24924600;
             } else if (!strcasecmp(optarg, "10m")) {
-                rx_options.dialfreq = 28124600.0;
+                rx_options.dialfreq = 28124600;
             } else if (!strcasecmp(optarg, "6m")) {
-                rx_options.dialfreq = 50293000.0;
+                rx_options.dialfreq = 50293000;
             } else if (!strcasecmp(optarg, "4m")) {
-                rx_options.dialfreq = 70091000.0;
+                rx_options.dialfreq = 70091000;
             } else if (!strcasecmp(optarg, "2m")) {
-                rx_options.dialfreq = 144489000.0;
+                rx_options.dialfreq = 144489000;
             } else if (!strcasecmp(optarg, "1m25")) {
-                rx_options.dialfreq = 222280000.0;
+                rx_options.dialfreq = 222280000;
             } else if (!strcasecmp(optarg, "70cm")) {
-                rx_options.dialfreq = 432300000.0;
+                rx_options.dialfreq = 432300000;
             } else if (!strcasecmp(optarg, "23cm")) {
-                rx_options.dialfreq = 1296500000.0;
+                rx_options.dialfreq = 1296500000;
             } else {
-            // Not a string. Parse it as a double.
-            rx_options.dialfreq = (uint32_t)atofs(optarg);
+                rx_options.dialfreq = (uint32_t)atofs(optarg);
             }
             break;
         case 'c':  // Callsign
