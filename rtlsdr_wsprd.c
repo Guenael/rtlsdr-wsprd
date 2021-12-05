@@ -316,7 +316,7 @@ static void *wsprDecoder(void *arg) {
         pthread_mutex_unlock(&dec.ready_mutex);
 
         if (rx_state.exit_flag)
-            /* Abord case, final sig */
+            /* Abort case, final sig */
             break;
 
         /* Lock the buffer access and make a local copy */
@@ -820,7 +820,7 @@ int main(int argc, char **argv) {
         /* Use the Store the date at the begin of the frame */
         time(&rawtime);
         gtm = gmtime(&rawtime);
-        // FIXME: Complier warning about mixing int & date
+        // FIXME: Compiler warning about mixing int & date
         snprintf(rx_options.date, sizeof(rx_options.date), "%02d%02d%02d", gtm->tm_year - 100, gtm->tm_mon + 1, gtm->tm_mday);
         snprintf(rx_options.uttime, sizeof(rx_options.uttime), "%02d%02d", gtm->tm_hour, gtm->tm_min);
 
