@@ -13,8 +13,8 @@
 This project aim at decoding WSPR signals using an RTL device, usually connected to a Raspberry Pi.
 To install and use your dongle on a Raspberry Pi with a Rasberian OS:
 
-```
-sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev
+```bash
+sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev ntp
 git clone https://github.com/Guenael/rtlsdr-wsprd
 cd rtlsdr-wsprd
 make
@@ -31,17 +31,16 @@ This application written in C does:
 - A time alignment (2 mins, required NTPd to run on the OS)
 - Start the reception using the RTL lib
 - Decimate the IQ data (2.4Msps to 375 sps)
-- Decode WSPR signal
-- Push the spots on WSPRnet
+- Decode WSPR signals
+- Push any spots on WSPRnet
 - Repeat, again and again...
-
 
 ## Installation
 
   1. Install a Linux compatible distro on your device (ex. Raspbian for RaspberryPi)
   1. Install dependencies & useful tools (for example, NTP for time synchronization). Example with a Debian based like Raspbian:
      ```
-     sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev
+     sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev ntp
      ```
   1. Clone this repository:
      ```
@@ -68,7 +67,6 @@ This application written in C does:
     ```
   - Remove unused modules (for example, /etc/modules: #snd-bcm2835)
   - Use an enclosure, and ground it
-
 
 ## Crystal stability
 
