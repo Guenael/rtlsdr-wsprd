@@ -118,9 +118,9 @@ void pack_prefix(char *callsign, int32_t *n, int32_t *m, int32_t *nadd) {
         *m = 10 * (callsign[i1 + 1] - 48) + (callsign[i1 + 2] - 48);
         *m = 60000 + 26 + *m;
     } else {
+        // three chars or more
         char *pfx = strtok(callsign, "/");
-        call6 = strtok(pfx, " ");  // FIXME-CHECK
-        *n = pack_call(call6);
+        *n = pack_call(strtok(NULL, " "));
         int plen = strlen(pfx);
         if (plen == 1) {
             *m = 36;
