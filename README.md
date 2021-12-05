@@ -14,7 +14,7 @@ This project aim at decoding FT8 signals using an RTL device, usually connected 
 To install and use your dongle on a Raspberry Pi with a Rasberian OS:
 
 ```
-sudo apt-get -y install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev
+sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev
 git clone https://github.com/Guenael/rtlsdr-wsprd
 cd rtlsdr-wsprd
 make
@@ -41,7 +41,7 @@ This application written in C does:
   1. Install a Linux compatible distro on your device (ex. Raspbian for RaspberryPi)
   1. Install dependencies & useful tools (for example, NTP for time synchronization). Example with a Debian based like Raspbian:
      ```
-     sudo apt-get -y install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev
+     sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev
      ```
   1. Clone this repository:
      ```
@@ -81,4 +81,5 @@ Some manufacturers intergrate a 0.5ppm TCXO. It's the best second option, after 
 - Other no-name like : RT820, E4000, FC0012, FC0013, can work, but require modification and drift a lot
 
 Ex: NooElec NESDR SMArt - Premium RTL-SDR w/ Aluminum Enclosure, 0.5PPM TCXO
+
 https://www.nooelec.com/store/nesdr-smart.html
