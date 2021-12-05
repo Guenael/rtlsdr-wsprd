@@ -10,7 +10,7 @@
 
 ## TL;DR
 
-This project aim at decoding FT8 signals using an RTL device, usually connected to a Raspberry Pi.
+This project aim at decoding WSPR signals using an RTL device, usually connected to a Raspberry Pi.
 To install and use your dongle on a Raspberry Pi with a Rasberian OS:
 
 ```
