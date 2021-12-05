@@ -1,13 +1,11 @@
 # rtlsdr-wsprd -- WSPR daemon for RTL receivers
 
-[![rtlsdr-wsprd!](art/rtlsdr-wsprd-web.jpg)](art/)
+![rtlsdr-wsprd](art/rtlsdr-wsprd-web.jpg)
 
-[![Build Status](https://github.com/Guenael/rtlsdr-wsprd/workflows/.github/workflows/codeql-analysis.yml/badge.svg)](https://github.com/Guenael/rtlsdr-wsprd/actions/CI)
 ![Workflow Status](https://img.shields.io/github/workflow/status/Guenael/rtlsdr-wsprd/CI)
-![Code coverage](https://img.shields.io/gitlab/coverage/Guenael/rtlsdr-wsprd/master)
-![Repo stars](https://img.shields.io/github/stars/Guenael/rtlsdr-wsprd?style=social)
 ![Last commit](https://img.shields.io/github/last-commit/Guenael/rtlsdr-wsprd)
 ![Commit activity](https://img.shields.io/github/commit-activity/m/Guenael/rtlsdr-wsprd)
+![Repo stars](https://img.shields.io/github/stars/Guenael/rtlsdr-wsprd?style=social)
 
 
 ## TL;DR
