@@ -49,5 +49,11 @@ jobs:
         echo "===== CPPLINT ====="
         cpplint --linelength=1000 --extensions=c --headers=h --recursive * || true
 
+    - name: Codespell check (beacause of my spelling...)
+      run: |
+        pip install codespell
+        echo "===== CODESPELL ====="
+        codespell -L 'rcall' *.c *.h wsprd/*.c wsprd/*.h
+
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
