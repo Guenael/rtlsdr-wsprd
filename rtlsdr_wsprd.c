@@ -330,8 +330,8 @@ static void *wsprDecoder(void *arg) {
         memcpy(dec_options.date, rx_options.date, sizeof(rx_options.date));
         memcpy(dec_options.uttime, rx_options.uttime, sizeof(rx_options.uttime));
 
-        /* Debug option used to save decimate IQ samples */
-        if (rx_options.readfile == 1) {
+        /* Debug option used to save decimated IQ samples */
+        if (rx_options.readfile == true) {
             writeRawIQfile(iSamples, qSamples, rx_options.filename);
             rx_state.exit_flag = true;
         }
@@ -425,6 +425,9 @@ void initrx_options() {
     rx_options.directsampling = 0;
     rx_options.maxloop        = 0;
     rx_options.device         = 0;
+    rx_options.selftest       = false;
+    rx_options.writefile      = false;
+    rx_options.readfile       = false;
 }
 
 
@@ -705,11 +708,9 @@ int main(int argc, char **argv) {
                 break;
             case 'c':  // Callsign
                 snprintf(dec_options.rcall, sizeof(dec_options.rcall), "%.12s", optarg);
-                printf("==1 %s\n", optarg);
                 break;
             case 'l':  // Locator / Grid
                 snprintf(dec_options.rloc, sizeof(dec_options.rloc), "%.6s", optarg);
-                printf("==2 %s\n", optarg);
                 break;
             case 'g':  // Small signal amplifier gain
                 rx_options.gain = atoi(optarg);
@@ -759,6 +760,7 @@ int main(int argc, char **argv) {
                 break;
             case 'r':  // Write a signal and exit
                 rx_options.readfile = true;
+                printf("Recording the first signal\n");
                 snprintf(rx_options.filename, sizeof(rx_options.filename), "%.32s", optarg);
                 break;
             default:
