@@ -38,7 +38,10 @@ jobs:
         sudo apt-get -y install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev cppcheck iwyu
         make
 
-    - name: SAST check (C/C++ code analysis)
+    - name: Perform CodeQL Analysis (SAST)
+      uses: github/codeql-action/analyze@v1
+
+    - name: Cppcheck (C/C++ format & best best-practice)
       run: |
         echo "===== CPPCHECK ====="
         cppcheck --std=c11 *.c wsprd/*.c
@@ -55,5 +58,7 @@ jobs:
         echo "===== CODESPELL ====="
         codespell -L 'rcall' *.c *.h wsprd/*.c wsprd/*.h
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v1
+    - name: Unit-Test
+      run: |
+        echo "===== Decoder self-test ====="
+        ./rtlsdr_wsprd -t decoder
