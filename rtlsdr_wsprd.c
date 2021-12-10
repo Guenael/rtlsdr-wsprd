@@ -587,7 +587,7 @@ int32_t decoderSelfTest() {
                dec_results[i].pwr);
     }
 
-    /* Simple consistancy check */
+    /* Simple consistency check */
     if (strcmp(dec_results[0].call, "K1JT") &&
         strcmp(dec_results[0].loc,  "FN20") &&
         strcmp(dec_results[0].pwr,  "20")) {
