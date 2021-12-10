@@ -119,8 +119,9 @@ void pack_prefix(char *callsign, int32_t *n, int32_t *m, int32_t *nadd) {
         *m = 60000 + 26 + *m;
     } else {
         char *pfx = strtok(callsign, "/");
-        call6 = strtok(NULL, " ");
-        *n = pack_call(call6);
+        *n = pack_call(strtok(NULL, " "));
+        //call6 = strtok(NULL, " ");
+        //*n = pack_call(call6);
         int plen = strlen(pfx);
         if (plen == 1) {
             *m = 36;
