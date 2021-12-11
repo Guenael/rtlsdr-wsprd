@@ -52,7 +52,7 @@
 // #pragma GCC diagnostic ignored "-Wformat-truncation"  // Was used with GCC
 
 /* Sampling definition for RTL devices */
-#define SIGNAL_LENGHT       116                                 // FIXME, why not 119?
+#define SIGNAL_LENGHT       116                                 // EVAL, why not 119?
 #define SIGNAL_LENGHT_MAX   120
 #define SIGNAL_SAMPLE_RATE  375
 #define SAMPLING_RATE       2400000
@@ -62,12 +62,12 @@
 
 
 /* Global declaration for states & options */
-static struct receiver_state   rx_state;                        // FIXME - Implicit static... (DBG only)
-static struct receiver_options rx_options;
-static struct decoder_options  dec_options;
-static struct decoder_results  dec_results[50];
-static rtlsdr_dev_t            *rtl_device = NULL;
-// +++ n_results
+struct receiver_state   rx_state;
+struct receiver_options rx_options;
+struct decoder_options  dec_options;
+struct decoder_results  dec_results[50];
+rtlsdr_dev_t            *rtl_device = NULL;
+
 
 /* Thread stuff for side decoding */
 struct decoder_state {
@@ -78,7 +78,7 @@ struct decoder_state {
     pthread_cond_t   ready_cond;
     pthread_mutex_t  ready_mutex;
 };
-struct decoder_state dec;
+struct decoder_state dec_state;
 
 
 /* Thread stuff for separate RX (blocking function) */
@@ -159,7 +159,8 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     */
     for (int32_t i = 0; i < samples_count / 2; i++) {
         /* Integrator stages (N=2) */
-        Ix1 += (int32_t)sigIn[i * 2];  // FIXME: move sigIn in float here ?
+        // EVAL: option to move sigIn in float here
+        Ix1 += (int32_t)sigIn[i * 2];
         Qx1 += (int32_t)sigIn[i * 2 + 1];
         Ix2 += Ix1;
         Qx2 += Qx1;
@@ -170,7 +171,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
             continue;
         }
 
-        // FIXME/TODO : some optimization here
+        // EVAL possible optimization here
         /* 1st Comb */
         Iy1  = Ix2 - It1z;
         It1z = It1y;
@@ -187,7 +188,6 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
         Qt2z = Qt2y;
         Qt2y = Qy1;
 
-        // FIXME/TODO : could be made with int32_t (8 bits, 20 bits)
         /* FIR compensation filter */
         float Isum = 0.0, Qsum = 0.0;
         for (uint32_t j = 0; j < 32; j++) {
@@ -206,17 +206,17 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
         /* Save the result in the buffer */
         if (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE)) {
             /* Lock the buffer during writing */
-            pthread_rwlock_wrlock(&dec.rw);
+            pthread_rwlock_wrlock(&dec_state.rw);
             rx_state.iSamples[rx_state.iqIndex] = Isum / (8192.0 * DOWNSAMPLING);
             rx_state.qSamples[rx_state.iqIndex] = Qsum / (8192.0 * DOWNSAMPLING);
-            pthread_rwlock_unlock(&dec.rw);
+            pthread_rwlock_unlock(&dec_state.rw);
             rx_state.iqIndex++;
         } else {
             if (rx_state.decode_flag == false) {
                 /* Send a signal to the other thread to start the decoding */
-                pthread_mutex_lock(&dec.ready_mutex);
-                pthread_cond_signal(&dec.ready_cond);
-                pthread_mutex_unlock(&dec.ready_mutex);
+                pthread_mutex_lock(&dec_state.ready_mutex);
+                pthread_cond_signal(&dec_state.ready_cond);
+                pthread_mutex_unlock(&dec_state.ready_mutex);
                 rx_state.decode_flag = true;
             }
         }
@@ -341,19 +341,19 @@ static void *wsprDecoder(void *arg) {
     int32_t n_results = 0;
 
     while (!rx_state.exit_flag) {
-        pthread_mutex_lock(&dec.ready_mutex);
-        pthread_cond_wait(&dec.ready_cond, &dec.ready_mutex);
-        pthread_mutex_unlock(&dec.ready_mutex);
+        pthread_mutex_lock(&dec_state.ready_mutex);
+        pthread_cond_wait(&dec_state.ready_cond, &dec_state.ready_mutex);
+        pthread_mutex_unlock(&dec_state.ready_mutex);
 
         if (rx_state.exit_flag)
             break;  /* Abort case, final sig */
 
         /* Lock the buffer access and make a local copy */
-        pthread_rwlock_wrlock(&dec.rw);
+        pthread_rwlock_wrlock(&dec_state.rw);
         memcpy(iSamples, rx_state.iSamples, rx_state.iqIndex * sizeof(float));
         memcpy(qSamples, rx_state.qSamples, rx_state.iqIndex * sizeof(float));
         samples_len = rx_state.iqIndex;  // Overkill ?
-        pthread_rwlock_unlock(&dec.rw);
+        pthread_rwlock_unlock(&dec_state.rw);
 
         /* Date and time will be updated/overload during the search & decoding process
            Make a simple copy
@@ -584,18 +584,18 @@ int32_t decoderSelfTest() {
     static float iSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
     static float qSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
     static uint32_t samples_len = SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE;
-    int32_t n_results = 0;  // FIXME: put n_results as a global variable
+    int32_t n_results = 0;
 
     unsigned char symbols[162];
     char message[] = "K1JT FN20QI 20";
     char hashtab[32768*13] = {0};
-    //char loctab[32768*5]   = {0}; // FIXME
+    //char loctab[32768*5]   = {0};  // EVAL: code update from wsprd
 
     // Compute sympbols from the message
     get_wspr_channel_symbols(message, hashtab,  symbols);
 
     float  f0  = 50.0;
-    float  t0  = 2.0;  // FIXME !! Caution, possible buffer overflow with the index calculation
+    float  t0  = 2.0;  // Caution!! Possible buffer overflow with the index calculation (no user input here!)
     float  amp = 1.0;
     float  wgn = 0.02;
     double phi = 0.0;
@@ -968,20 +968,20 @@ int main(int argc, char **argv) {
 
     /* Prepare a low priority param for the decoder thread */
     struct sched_param param;
-    pthread_attr_init(&dec.tattr);
-    pthread_attr_setschedpolicy(&dec.tattr, SCHED_RR);
-    pthread_attr_getschedparam(&dec.tattr, &param);
+    pthread_attr_init(&dec_state.tattr);
+    pthread_attr_setschedpolicy(&dec_state.tattr, SCHED_RR);
+    pthread_attr_getschedparam(&dec_state.tattr, &param);
     param.sched_priority = 90;  // = sched_get_priority_min();
-    pthread_attr_setschedparam(&dec.tattr, &param);
+    pthread_attr_setschedparam(&dec_state.tattr, &param);
 
     /* Create a thread and stuff for separate decoding
        Info : https://computing.llnl.gov/tutorials/pthreads/
     */
-    pthread_rwlock_init(&dec.rw, NULL);
-    pthread_cond_init(&dec.ready_cond, NULL);
-    pthread_mutex_init(&dec.ready_mutex, NULL);
+    pthread_rwlock_init(&dec_state.rw, NULL);
+    pthread_cond_init(&dec_state.ready_cond, NULL);
+    pthread_mutex_init(&dec_state.ready_mutex, NULL);
     pthread_create(&dongle.thread, NULL, rtlsdr_rx, NULL);
-    pthread_create(&dec.thread, &dec.tattr, wsprDecoder, NULL);
+    pthread_create(&dec_state.thread, &dec_state.tattr, wsprDecoder, NULL);
 
     /* Main loop : Wait, read, decode */
     while (!rx_state.exit_flag && !(rx_options.maxloop && (nLoop >= rx_options.maxloop))) {
@@ -1017,16 +1017,16 @@ int main(int argc, char **argv) {
     printf("Bye!\n");
 
     /* Wait the thread join (send a signal before to terminate the job) */
-    pthread_mutex_lock(&dec.ready_mutex);
-    pthread_cond_signal(&dec.ready_cond);
-    pthread_mutex_unlock(&dec.ready_mutex);
-    pthread_join(dec.thread, NULL);
+    pthread_mutex_lock(&dec_state.ready_mutex);
+    pthread_cond_signal(&dec_state.ready_cond);
+    pthread_mutex_unlock(&dec_state.ready_mutex);
+    pthread_join(dec_state.thread, NULL);
     pthread_join(dongle.thread, NULL);
 
     /* Destroy the lock/cond/thread */
-    pthread_rwlock_destroy(&dec.rw);
-    pthread_cond_destroy(&dec.ready_cond);
-    pthread_mutex_destroy(&dec.ready_mutex);
+    pthread_rwlock_destroy(&dec_state.rw);
+    pthread_cond_destroy(&dec_state.ready_cond);
+    pthread_mutex_destroy(&dec_state.ready_mutex);
     pthread_exit(NULL);
 
     return EXIT_SUCCESS;

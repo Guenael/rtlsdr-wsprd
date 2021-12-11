@@ -302,7 +302,7 @@ int unpk_(signed char *message, char *hashtab, char *call_loc_pow, char *call, c
             strncat(call_loc_pow, cdbm, 2);
             strncat(call_loc_pow, "\0", 1);
             int nu = ndbm % 10;
-            if (nu == 0 || nu == 3 || nu == 7 || nu == 10) {  // make sure power is OK
+            if (nu == 0 || nu == 3 || nu == 7) {  // make sure power is OK
                 ihash = nhash(callsign, strlen(callsign), (uint32_t)146);
                 strcpy(hashtab + ihash * 13, callsign);
             } else {
@@ -324,7 +324,7 @@ int unpk_(signed char *message, char *hashtab, char *call_loc_pow, char *call, c
         strncat(grid6, callsign + 5, 1);
         strncat(grid6, callsign, 5);
         int nu = ndbm % 10;
-        if ((nu == 0 || nu == 3 || nu == 7 || nu == 10) &&
+        if ((nu == 0 || nu == 3 || nu == 7) &&
             (isalpha(grid6[0]) && isalpha(grid6[1]) && isdigit(grid6[2]) && isdigit(grid6[3]))) {
             // not testing 4'th and 5'th chars because of this case: <PA0SKT/2> JO33 40
             // grid is only 4 chars even though this is a hashed callsign...
