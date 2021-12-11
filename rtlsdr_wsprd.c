@@ -650,8 +650,7 @@ void usage(void) {
             "Use:\trtlsdr_wsprd -f frequency -c callsign -l locator [options]\n"
             "\t-f dial frequency [(,k,M) Hz] or band string\n"
             "\t   If band string is used, the default dial frequency will used.\n"
-            "\t   Bands: LF LF-15 MF MF-15 160m 160m-15 80m 60m 40m 30m 20m 17m 15m 12m 10m 6m 4m 2m 1m25 70cm 23cm\n"
-            "\t   ('-15' suffix indicates the WSPR-15 region of band.)\n"
+            "\t   Bands: LF MF 160m 80m 60m 40m 30m 20m 17m 15m 12m 10m 6m 4m 2m 1m25 70cm 23cm\n"
             "\t-c your callsign (12 chars max)\n"
             "\t-l your locator grid (6 chars max)\n"
             "Receiver extra options:\n"
@@ -705,16 +704,10 @@ int main(int argc, char **argv) {
             case 'f':  // Frequency
                 if (!strcasecmp(optarg, "LF")) {
                     rx_options.dialfreq = 136000;
-                } else if (!strcasecmp(optarg, "LF-15")) {
-                    rx_options.dialfreq = 136112;
                 } else if (!strcasecmp(optarg, "MF")) {
                     rx_options.dialfreq = 474200;
-                } else if (!strcasecmp(optarg, "MF-15")) {
-                    rx_options.dialfreq = 474312;
                 } else if (!strcasecmp(optarg, "160m")) {
                     rx_options.dialfreq = 1836600;
-                } else if (!strcasecmp(optarg, "160m-15")) {
-                    rx_options.dialfreq = 1838212;
                 } else if (!strcasecmp(optarg, "80m")) {
                     rx_options.dialfreq = 3592600;
                 } else if (!strcasecmp(optarg, "60m")) {
