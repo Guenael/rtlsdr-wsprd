@@ -39,23 +39,21 @@
 #include <signal.h>
 #include <math.h>
 #include <string.h>
-#include <sys/time.h> //#include <time.h>
-#include <curl/curl.h>
+#include <sys/time.h>
 #include <pthread.h>
 #include <rtl-sdr.h>
-
+#include <curl/curl.h>
 
 #include "./rtlsdr_wsprd.h"
-#include "wsprd/wsprd.h"
-#include "wsprd/wsprsim_utils.h"
+#include "./wsprd/wsprd.h"
+#include "./wsprd/wsprsim_utils.h"
 
 
-/* snprintf possible truncation allowed to prevent possible buffer overflow */
-#pragma GCC diagnostic ignored "-Wformat-truncation"
-
+// #pragma GCC diagnostic ignored "-Wformat-truncation"  // Used with GCC
 
 /* Sampling definition for RTL devices */
-#define SIGNAL_LENGHT       116
+#define SIGNAL_LENGHT       116                                 // FIXME, why not 119?
+#define SIGNAL_LENGHT_MAX   120
 #define SIGNAL_SAMPLE_RATE  375
 #define SAMPLING_RATE       2400000
 #define FS4_RATE            SAMPLING_RATE / 4                   // = 600 kHz
@@ -63,15 +61,15 @@
 #define DEFAULT_BUF_LENGTH  (4 * 16384)                         // = 65536
 
 
-/* Global declaration for these structs */
-struct receiver_state   rx_state;
-struct receiver_options rx_options;
-struct decoder_options  dec_options;
-struct decoder_results  dec_results[50];
-static rtlsdr_dev_t     *rtl_device = NULL;
+/* Global declaration for states & options */
+static struct receiver_state   rx_state;                        // FIXME - Implicit static... (DBG only)
+static struct receiver_options rx_options;
+static struct decoder_options  dec_options;
+static struct decoder_results  dec_results[50];
+static rtlsdr_dev_t            *rtl_device = NULL;
+// +++ n_results
 
-
-/* Thread stuff for separate decoding */
+/* Thread stuff for side decoding */
 struct decoder_state {
     pthread_t        thread;
     pthread_attr_t   tattr;
@@ -91,9 +89,7 @@ struct dongle_state dongle;
 
 
 /* Callback for each buffer received */
-static void rtlsdr_callback(unsigned char *samples,
-                            uint32_t samples_count,
-                            void *ctx) {
+static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void *ctx) {
     int8_t *sigIn = (int8_t *)samples;
     uint32_t sigLenght = samples_count;
 
@@ -104,30 +100,32 @@ static void rtlsdr_callback(unsigned char *samples,
     static int32_t Iy1, It1y, It1z, Qy1, Qt1y, Qt1z;
     static int32_t Iy2, It2y, It2z, Qy2, Qt2y, Qt2z;
 
-    /* FIR compensation filter buffers */
-    static float firI[32], firQ[32];
-    float Isum, Qsum;
-
     /* FIR compensation filter coefs
        Using : Octave/MATLAB code for generating compensation FIR coefficients
        URL : https://github.com/WestCoastDSP/CIC_Octave_Matlab
      */
     const static float zCoef[33] = {
-        -0.0027772683, -0.0005058826,  0.0049745750, -0.0034059318,
-        -0.0077557814,  0.0139375423,  0.0039896935, -0.0299394142,
-         0.0162250643,  0.0405130860, -0.0580746013, -0.0272104968,
-         0.1183705475, -0.0306029022, -0.2011241667,  0.1615898423,
-         0.5000000000,
-         0.1615898423, -0.2011241667, -0.0306029022,  0.1183705475,
-        -0.0272104968, -0.0580746013,  0.0405130860,  0.0162250643,
-        -0.0299394142,  0.0039896935,  0.0139375423, -0.0077557814,
-        -0.0034059318,  0.0049745750, -0.0005058826, -0.0027772683
+        0.0003583750, -0.0033012200, -0.0006091820, 0.0067293400,
+        0.0014032700, -0.0142768000, -0.0031078200, 0.0273501000,
+        0.0065224800, -0.0482825000, -0.0137258000, 0.0820597000,
+        0.0314890000, -0.1420800000, -0.0913795000, 0.2713470000,
+        0.5000000000,
+        0.2713470000, -0.0913795000, -0.1420800000, 0.0314890000,
+        0.0820597000, -0.0137258000, -0.0482825000, 0.0065224800,
+        0.0273501000, -0.0031078200, -0.0142768000, 0.0014032700,
+        0.0067293400, -0.0006091820, -0.0033012200, 0.0003583750,
     };
 
+    /* FIR compensation filter buffers */
+    static float firI[32] = {0.0},
+                 firQ[32] = {0.0};
+    static float Isum = 0.0,
+                 Qsum = 0.0;
+
     /* Convert unsigned to signed */
-    for (uint32_t i = 0; i < sigLenght; i++)
-        // XOR with a binary mask to flip the first bit (sign)
-        sigIn[i] ^= 0x80;
+    for (uint32_t i = 0; i < sigLenght; i++) {
+        sigIn[i] ^= 0x80;  // XOR with a binary mask to flip the first bit (sign)
+    }
 
     /* Economic mixer @ fs/4 (upper band)
        At fs/4, sin and cosin calculation are no longer necessary.
@@ -136,6 +134,7 @@ static void rtlsdr_callback(unsigned char *samples,
              ----------------------------
        sin =   0   |  1   |  0   |  -1  |
        cos =   1   |  0   | -1   |   0  |
+
        out_I = in_I * cos(x) - in_Q * sin(x)
        out_Q = in_Q * cos(x) + in_I * sin(x)
        (Weaver technique, keep the upper band, IQ inverted on RTL devices)
@@ -192,7 +191,6 @@ static void rtlsdr_callback(unsigned char *samples,
 
         // FIXME/TODO : could be made with int32_t (8 bits, 20 bits)
         /* FIR compensation filter */
-        Isum = 0.0, Qsum = 0.0;
         for (uint32_t j = 0; j < 32; j++) {
             Isum += firI[j] * zCoef[j];
             Qsum += firQ[j] * zCoef[j];
@@ -242,9 +240,10 @@ void postSpots(uint32_t n_results) {
     CURLcode res;
     char url[256];
 
-    time_t rawtime;
-    time(&rawtime);
-    struct tm *gtm = gmtime(&rawtime);
+    // TODO -- no spot
+    // if (n_results == 0) {
+    //     return;
+    // }
 
     for (uint32_t i = 0; i < n_results; i++) {
         snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%s&time=%s&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=0.2r_wsprd&mode=2",
@@ -260,6 +259,38 @@ void postSpots(uint32_t n_results) {
                  dec_results[i].loc,
                  dec_results[i].pwr);
 
+        curl = curl_easy_init();
+        if (curl) {
+            curl_easy_setopt(curl, CURLOPT_URL, url);
+            curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
+            res = curl_easy_perform(curl);
+
+            if (res != CURLE_OK)
+                fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+
+            curl_easy_cleanup(curl);
+        }
+    }
+}
+
+
+void printSpots(uint32_t n_results) {
+    time_t rawtime;
+    time(&rawtime);
+    struct tm *gtm = gmtime(&rawtime);
+
+    if (n_results == 0) {
+        printf("No spot %04d-%02d-%02d %02d:%02dz\n",
+               gtm->tm_year + 1900,
+               gtm->tm_mon + 1,
+               gtm->tm_mday,
+               gtm->tm_hour,
+               gtm->tm_min);
+
+        return;
+    }
+
+    for (uint32_t i = 0; i < n_results; i++) {
         printf("Spot :  %04d-%02d-%02d %02d:%02d:%02d %6.2f %6.2f %10.6f %2d %7s %6s %2s\n",
                gtm->tm_year + 1900,
                gtm->tm_mon + 1,
@@ -274,27 +305,28 @@ void postSpots(uint32_t n_results) {
                dec_results[i].call,
                dec_results[i].loc,
                dec_results[i].pwr);
-
-        curl = curl_easy_init();
-        if (curl) {
-            curl_easy_setopt(curl, CURLOPT_URL, url);
-            curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
-            res = curl_easy_perform(curl);
-
-            if (res != CURLE_OK)
-                fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-
-            curl_easy_cleanup(curl);
-        }
     }
+}
 
-    if (n_results == 0) {
-        printf("No spot %04d-%02d-%02d %02d:%02dz\n",
-               gtm->tm_year + 1900,
-               gtm->tm_mon + 1,
-               gtm->tm_mday,
-               gtm->tm_hour,
-               gtm->tm_min);
+
+void saveSample(float *iSamples, float *qSamples) {
+    if (rx_options.readfile == true) {
+        char filename[32];
+
+        time_t rawtime;
+        time(&rawtime);
+        struct tm *gtm = gmtime(&rawtime);
+
+        snprintf(filename, sizeof(filename) - 1, "sample_%04d-%02d-%02d_%02d-%02d-%02d.iq",
+                 gtm->tm_year + 1900,
+                 gtm->tm_mon + 1,
+                 gtm->tm_mday,
+                 gtm->tm_hour,
+                 gtm->tm_min,
+                 gtm->tm_sec);
+
+        writeRawIQfile(iSamples, qSamples, filename);
+        //writeRawIQfile(iSamples, qSamples, rx_options.filename);
     }
 }
 
@@ -330,15 +362,11 @@ static void *wsprDecoder(void *arg) {
         memcpy(dec_options.date, rx_options.date, sizeof(rx_options.date));
         memcpy(dec_options.uttime, rx_options.uttime, sizeof(rx_options.uttime));
 
-        /* Debug option used to save decimated IQ samples */
-        if (rx_options.readfile == true) {
-            writeRawIQfile(iSamples, qSamples, rx_options.filename);
-            rx_state.exit_flag = true;
-        }
-
         /* Search & decode the signal */
         wspr_decode(iSamples, qSamples, samples_len, dec_options, dec_results, &n_results);
+        saveSample(iSamples, qSamples);
         postSpots(n_results);
+        printSpots(n_results);
     }
     pthread_exit(NULL);
 }
@@ -438,30 +466,42 @@ void sigint_callback_handler(int signum) {
 
 
 int32_t readRawIQfile(float *iSamples, float *qSamples, char *filename) {
-    float filebuffer[2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
+    float filebuffer[2 * SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE];  // Allocate the max. size allowed
     FILE *fd = fopen(filename, "rb");
-    // FILE *fd = NULL;
-    // fd = fopen(filename, "rb");
 
     if (fd == NULL) {
         fprintf(stderr, "Cannot open data file...\n");
         return 0;
     }
 
-    int32_t nread = fread(filebuffer, sizeof(float), 2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE, fd);
-    if (nread != 2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) {
-        fprintf(stderr, "Cannot read all the data!\n");
+    /* Get the size of the file */
+    fseek(fd, 0L, SEEK_END);
+    int32_t recsize = ftell(fd) / (2 * sizeof(float));
+    fseek(fd, 0L, SEEK_SET);
+
+
+    /* Limit the file/buffer to 45000 samples (120 sec signal) */
+    if (recsize > SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE) {
+        recsize = SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE;
+    }
+
+    /* Read the iq file */
+    int32_t nread = fread(filebuffer, sizeof(float), 2 * recsize, fd);
+    if (nread != 2 * recsize) {
+        fprintf(stderr, "Cannot read all the data! %d\n", nread);
         fclose(fd);
         return 0;
+    } else {
+        fclose(fd);
     }
 
-    for (int32_t i = 0; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
-        iSamples[i] = filebuffer[2 * i];
-        qSamples[i] = filebuffer[2 * i + 1];
+    /* Convert the interleaved buffer into 2 buffers */
+    for (int32_t i = 0; i < recsize; i++) {
+        iSamples[i] =  filebuffer[2 * i];
+        qSamples[i] = -filebuffer[2 * i + 1];  // neg, convention used by wsprsim
     }
 
-    fclose(fd);
-    return SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE;
+    return recsize;
 }
 
 
@@ -475,8 +515,8 @@ int32_t writeRawIQfile(float *iSamples, float *qSamples, char *filename) {
     }
 
     for (int32_t i = 0; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
-        filebuffer[2 * i]     = iSamples[i];
-        filebuffer[2 * i + 1] = qSamples[i];
+        filebuffer[2 * i]     =  iSamples[i];
+        filebuffer[2 * i + 1] = -qSamples[i];  // neg, convention used by wsprsim
     }
 
     int32_t nwrite = fwrite(filebuffer, sizeof(float), 2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE, fd);
@@ -491,12 +531,13 @@ int32_t writeRawIQfile(float *iSamples, float *qSamples, char *filename) {
 
 
 void decodeRecordedFile(char *filename) {
-    static float iSamples[45000] = {0};
-    static float qSamples[45000] = {0};
+    static float iSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
+    static float qSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
     static uint32_t samples_len;
     int32_t n_results = 0;
 
     samples_len = readRawIQfile(iSamples, qSamples, filename);
+    printf("Number of samples: %d\n", samples_len);
 
     if (samples_len) {
         /* Search & decode the signal */
@@ -541,9 +582,9 @@ float whiteGaussianNoise(float factor) {
 
 
 int32_t decoderSelfTest() {
-    static float iSamples[45000] = {0};
-    static float qSamples[45000] = {0};
-    static uint32_t samples_len = 45000;
+    static float iSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
+    static float qSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
+    static uint32_t samples_len = SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE;
     int32_t n_results = 0;  // FIXME: put n_results as a global variable
 
     unsigned char symbols[162];
@@ -573,6 +614,8 @@ int32_t decoderSelfTest() {
             phi = phi + dphi;
         }
     }
+
+    writeRawIQfile(iSamples, qSamples, "selftest.iq");
 
     /* Search & decode the signal */
     wspr_decode(iSamples, qSamples, samples_len, dec_options, dec_results, &n_results);
@@ -786,6 +829,10 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    if (rx_options.writefile == true) {
+        fprintf(stdout, "Saving IQ file planned: %s\n", rx_options.filename);
+    }
+
     if (rx_options.dialfreq == 0) {
         fprintf(stderr, "Please specify a dial frequency.\n");
         fprintf(stderr, " --help for usage...\n");
@@ -900,12 +947,17 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    /* Print used parameter */
+
+    /* Time & date tools */
     time_t rawtime;
     time(&rawtime);
     struct tm *gtm = gmtime(&rawtime);
+    struct timeval lTime;
+    gettimeofday(&lTime, NULL);
 
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.3\n",
+
+    /* Print used parameter */
+    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.3.1\n",
            gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
     printf("  Callsign     : %s\n", dec_options.rcall);
     printf("  Locator      : %s\n", dec_options.rloc);
@@ -917,9 +969,8 @@ int main(int argc, char **argv) {
     else
         printf("  Gain         : %d dB\n", rx_options.gain / 10);
 
-    /* Time alignment stuff */
-    struct timeval lTime;
-    gettimeofday(&lTime, NULL);
+
+    /* Time alignment */
     uint32_t sec = lTime.tv_sec % 120;
     uint32_t usec = sec * 1000000 + lTime.tv_usec;
     uint32_t uwait = 120000000 - usec;
@@ -955,7 +1006,6 @@ int main(int argc, char **argv) {
         /* Use the Store the date at the begin of the frame */
         time(&rawtime);
         gtm = gmtime(&rawtime);
-        // FIXME: Compiler warning about mixing int & date
         snprintf(rx_options.date, sizeof(rx_options.date), "%02d%02d%02d", gtm->tm_year - 100, gtm->tm_mon + 1, gtm->tm_mday);
         snprintf(rx_options.uttime, sizeof(rx_options.uttime), "%02d%02d", gtm->tm_hour, gtm->tm_min);
 

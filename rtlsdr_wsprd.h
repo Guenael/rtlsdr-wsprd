@@ -74,6 +74,8 @@ struct receiver_options {
 static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void *ctx);
 static void *rtlsdr_rx(void *arg);
 void postSpots(uint32_t n_results);
+void printSpots(uint32_t n_results);
+void saveSample(float *iSamples, float *qSamples);
 static void *wsprDecoder(void *arg);
 double atofs(char *s);
 int32_t parse_u64(char *s, uint64_t *const value);
