@@ -818,7 +818,7 @@ int main(int argc, char **argv) {
     if (rx_options.readfile == true) {
         fprintf(stdout, "Reading IQ file: %s\n", rx_options.filename);
         decodeRecordedFile(rx_options.filename);
-        exit(1);
+        exit(0);
     }
 
     if (rx_options.writefile == true) {
