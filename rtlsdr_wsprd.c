@@ -309,16 +309,15 @@ void printSpots(uint32_t n_results) {
 
 
 void saveSample(float *iSamples, float *qSamples) {
-    {
-    // DEBUG
-    // if (rx_options.readfile == true) {
+    if (rx_options.writefile == true) {
         char filename[32];
 
         time_t rawtime;
         time(&rawtime);
         struct tm *gtm = gmtime(&rawtime);
 
-        snprintf(filename, sizeof(filename) - 1, "sample_%04d-%02d-%02d_%02d-%02d-%02d.iq",
+        snprintf(filename, sizeof(filename) - 1, "%.8s_%04d-%02d-%02d_%02d-%02d-%02d.iq",
+                 rx_options.filename,
                  gtm->tm_year + 1900,
                  gtm->tm_mon + 1,
                  gtm->tm_mday,
@@ -327,7 +326,6 @@ void saveSample(float *iSamples, float *qSamples) {
                  gtm->tm_sec);
 
         writeRawIQfile(iSamples, qSamples, filename);
-        //writeRawIQfile(iSamples, qSamples, rx_options.filename);
     }
 }
 
@@ -656,7 +654,7 @@ void usage(void) {
             "\t-l your locator grid (6 chars max)\n"
             "Receiver extra options:\n"
             "\t-g gain [0-49] (default: 29)\n"
-            "\t-a auto gain (default: off)\n"
+            "\t-a auto gain (off by default, no parameter)\n"
             "\t-o frequency offset (default: 0)\n"
             "\t-p crystal correction factor (ppm) (default: 0)\n"
             "\t-u upconverter (default: 0, example: 125M)\n"
@@ -664,13 +662,13 @@ void usage(void) {
             "\t-n max iterations (default: 0 = infinite loop)\n"
             "\t-i device index (in case of multiple receivers, default: 0)\n"
             "Decoder extra options:\n"
-            "\t-H use the hash table (could caught signal 11 on RPi)\n"
-            "\t-Q quick mode, doesn't dig deep for weak signals\n"
-            "\t-S single pass mode, no subtraction (same as original wsprd)\n"
+            "\t-H use the hash table (could caught signal 11 on RPi, no parameter)\n"
+            "\t-Q quick mode, doesn't dig deep for weak signals, no parameter\n"
+            "\t-S single pass mode, no subtraction (same as original wsprd), no parameter\n"
             "Debugging options:\n"
-            "\t-t decoder self-test (generate a signal & decode)\n"
-            "\t-w write received signal and exit\n"
-            "\t-r read signal, decode and exit\n"
+            "\t-t decoder self-test (generate a signal & decode), no parameter\n"
+            "\t-w write received signal and exit [filename prefix]\n"
+            "\t-r read signal, decode and exit [filename]\n"
             "\t   (raw format: 375sps, float 32 bits, 2 channels)\n"
             "Example:\n"
             "\trtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29 -o -4200\n");
@@ -795,7 +793,6 @@ int main(int argc, char **argv) {
                 break;
             case 'r':  // Write a signal and exit
                 rx_options.readfile = true;
-                printf("Recording the first signal\n");
                 snprintf(rx_options.filename, sizeof(rx_options.filename), "%.32s", optarg);
                 break;
             default:
@@ -822,7 +819,7 @@ int main(int argc, char **argv) {
     }
 
     if (rx_options.writefile == true) {
-        fprintf(stdout, "Saving IQ file planned: %s\n", rx_options.filename);
+        fprintf(stdout, "Saving IQ file planned with prefix: %.8s\n", rx_options.filename);
     }
 
     if (rx_options.dialfreq == 0) {
