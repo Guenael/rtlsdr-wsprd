@@ -49,7 +49,7 @@
 #include "./wsprd/wsprsim_utils.h"
 
 
-// #pragma GCC diagnostic ignored "-Wformat-truncation"  // Used with GCC
+// #pragma GCC diagnostic ignored "-Wformat-truncation"  // Was used with GCC
 
 /* Sampling definition for RTL devices */
 #define SIGNAL_LENGHT       116                                 // FIXME, why not 119?
@@ -91,14 +91,14 @@ struct dongle_state dongle;
 /* Callback for each buffer received */
 static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void *ctx) {
     int8_t *sigIn = (int8_t *)samples;
-    uint32_t sigLenght = samples_count;
 
-    uint32_t decimationIndex = 0;
-
-    /* CIC buffers */
-    static int32_t Ix1 = 0, Ix2 = 0, Qx1 = 0, Qx2 = 0;
-    static int32_t Iy1, It1y, It1z, Qy1, Qt1y, Qt1z;
-    static int32_t Iy2, It2y, It2z, Qy2, Qt2y, Qt2z;
+    /* CIC buffers/vars */
+    static int32_t  Ix1 = 0, Ix2 = 0, Qx1 = 0, Qx2 = 0;
+    static int32_t  Iy1 = 0, It1y = 0, It1z = 0,
+                    Qy1 = 0, Qt1y = 0, Qt1z = 0;
+    static int32_t  Iy2 = 0, It2y = 0, It2z = 0,
+                    Qy2 = 0, Qt2y = 0, Qt2z = 0;
+    static uint32_t decimationIndex = 0;
 
     /* FIR compensation filter coefs
        Using : Octave/MATLAB code for generating compensation FIR coefficients
@@ -121,7 +121,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
                  firQ[32] = {0.0};
 
     /* Convert unsigned to signed */
-    for (uint32_t i = 0; i < sigLenght; i++) {
+    for (uint32_t i = 0; i < samples_count; i++) {
         sigIn[i] ^= 0x80;  // XOR with a binary mask to flip the first bit (sign)
     }
 
@@ -138,7 +138,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
        (Weaver technique, keep the upper band, IQ inverted on RTL devices)
     */
     int8_t tmp;
-    for (uint32_t i = 0; i < sigLenght; i += 8) {
+    for (uint32_t i = 0; i < samples_count; i += 8) {
         tmp = -sigIn[i + 3];
         sigIn[i + 3] = sigIn[i + 2];
         sigIn[i + 2] = tmp;
@@ -157,7 +157,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
              * Understanding cascaded integrator-comb filters
                http://www.embedded.com/design/configurable-systems/4006446/Understanding-cascaded-integrator-comb-filters
     */
-    for (int32_t i = 0; i < sigLenght / 2; i++) {
+    for (int32_t i = 0; i < samples_count / 2; i++) {
         /* Integrator stages (N=2) */
         Ix1 += (int32_t)sigIn[i * 2];  // FIXME: move sigIn in float here ?
         Qx1 += (int32_t)sigIn[i * 2 + 1];
@@ -207,8 +207,8 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
         if (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE)) {
             /* Lock the buffer during writing */
             pthread_rwlock_wrlock(&dec.rw);
-            rx_state.iSamples[rx_state.iqIndex] = Isum;
-            rx_state.qSamples[rx_state.iqIndex] = Qsum;
+            rx_state.iSamples[rx_state.iqIndex] = Isum / (8192.0 * DOWNSAMPLING);
+            rx_state.qSamples[rx_state.iqIndex] = Qsum / (8192.0 * DOWNSAMPLING);
             pthread_rwlock_unlock(&dec.rw);
             rx_state.iqIndex++;
         } else {
@@ -310,7 +310,8 @@ void printSpots(uint32_t n_results) {
 
 void saveSample(float *iSamples, float *qSamples) {
     {
-    //if (rx_options.readfile == true) {
+    // DEBUG
+    // if (rx_options.readfile == true) {
         char filename[32];
 
         time_t rawtime;
@@ -336,8 +337,8 @@ static void *wsprDecoder(void *arg) {
        (120 sec max @ 375sps = 45000 samples)
        With the real duration (SIGNAL_LENGHT) = 375 * 116 = 43500 samples
     */
-    static float iSamples[45000] = {0};
-    static float qSamples[45000] = {0};
+    static float iSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
+    static float qSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
     static uint32_t samples_len;
     int32_t n_results = 0;
 
@@ -692,7 +693,7 @@ int main(int argc, char **argv) {
     rx_state.qSamples = malloc(sizeof(float) * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE);
 
     /* Stop condition setup */
-    rx_state.exit_flag = false;
+    rx_state.exit_flag   = false;
     rx_state.decode_flag = false;
     uint32_t nLoop = 0;
 
@@ -817,7 +818,7 @@ int main(int argc, char **argv) {
     if (rx_options.readfile == true) {
         fprintf(stdout, "Reading IQ file: %s\n", rx_options.filename);
         decodeRecordedFile(rx_options.filename);
-        exit(1);
+        exit(0);
     }
 
     if (rx_options.writefile == true) {

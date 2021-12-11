@@ -71,7 +71,7 @@ struct receiver_options {
 };
 
 
-static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void *ctx);
+static void rtlsdr_callback(unsigned char *samples, uint32_t sigLenght, void *ctx);
 static void *rtlsdr_rx(void *arg);
 void postSpots(uint32_t n_results);
 void printSpots(uint32_t n_results);
