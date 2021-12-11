@@ -93,10 +93,10 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     int8_t *sigIn = (int8_t *)samples;
     uint32_t sigLenght = samples_count;
 
-    static uint32_t decimationIndex = 0;
+    uint32_t decimationIndex = 0;
 
     /* CIC buffers */
-    static int32_t Ix1, Ix2, Qx1, Qx2;
+    static int32_t Ix1 = 0, Ix2 = 0, Qx1 = 0, Qx2 = 0;
     static int32_t Iy1, It1y, It1z, Qy1, Qt1y, Qt1z;
     static int32_t Iy2, It2y, It2z, Qy2, Qt2y, Qt2z;
 
@@ -119,8 +119,6 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     /* FIR compensation filter buffers */
     static float firI[32] = {0.0},
                  firQ[32] = {0.0};
-    static float Isum = 0.0,
-                 Qsum = 0.0;
 
     /* Convert unsigned to signed */
     for (uint32_t i = 0; i < sigLenght; i++) {
@@ -161,12 +159,12 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     */
     for (int32_t i = 0; i < sigLenght / 2; i++) {
         /* Integrator stages (N=2) */
-        Ix1 += (int32_t)sigIn[i * 2];
+        Ix1 += (int32_t)sigIn[i * 2];  // FIXME: move sigIn in float here ?
         Qx1 += (int32_t)sigIn[i * 2 + 1];
         Ix2 += Ix1;
         Qx2 += Qx1;
 
-        /* Decimation R=6400 */
+        /* Decimation stage */
         decimationIndex++;
         if (decimationIndex <= DOWNSAMPLING) {
             continue;
@@ -191,6 +189,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
 
         // FIXME/TODO : could be made with int32_t (8 bits, 20 bits)
         /* FIR compensation filter */
+        float Isum = 0.0, Qsum = 0.0;
         for (uint32_t j = 0; j < 32; j++) {
             Isum += firI[j] * zCoef[j];
             Qsum += firQ[j] * zCoef[j];
@@ -310,7 +309,8 @@ void printSpots(uint32_t n_results) {
 
 
 void saveSample(float *iSamples, float *qSamples) {
-    if (rx_options.readfile == true) {
+    {
+    //if (rx_options.readfile == true) {
         char filename[32];
 
         time_t rawtime;
@@ -700,7 +700,7 @@ int main(int argc, char **argv) {
     if (argc <= 1)
         usage();
 
-    while ((opt = getopt(argc, argv, "f:c:l:g:a:o:p:u:d:n:i:t:w:r:H:Q:S")) != -1) {
+    while ((opt = getopt(argc, argv, "f:c:l:g:ao:p:u:dn:i:tw:r:HQS")) != -1) {
         switch (opt) {
             case 'f':  // Frequency
                 if (!strcasecmp(optarg, "LF")) {
@@ -762,21 +762,19 @@ int main(int argc, char **argv) {
                 rx_options.gain *= 10;
                 break;
             case 'a':  // Auto gain
-                rx_options.autogain = atoi(optarg);
-                if (rx_options.autogain < 0) rx_options.autogain = 0;
-                if (rx_options.autogain > 1) rx_options.autogain = 1;
+                rx_options.autogain = 1;
                 break;
             case 'o':  // Fine frequency correction
                 rx_options.shift = atoi(optarg);
                 break;
-            case 'p':
+            case 'p':  // Crystal correction
                 rx_options.ppm = atoi(optarg);
                 break;
             case 'u':  // Upconverter frequency
                 rx_options.upconverter = (uint32_t)atofs(optarg);
                 break;
             case 'd':  // Direct Sampling
-                rx_options.directsampling = (uint32_t)atofs(optarg);
+                rx_options.directsampling = 1;
                 break;
             case 'n':  // Stop after n iterations
                 rx_options.maxloop = (uint32_t)atofs(optarg);
@@ -886,7 +884,7 @@ int main(int argc, char **argv) {
     }
 
     if (rx_options.directsampling) {
-        rtl_result = rtlsdr_set_direct_sampling(rtl_device, rx_options.directsampling);
+        rtl_result = rtlsdr_set_direct_sampling(rtl_device, 1);
         if (rtl_result < 0) {
             fprintf(stderr, "ERROR: Failed to set direct sampling\n");
             rtlsdr_close(rtl_device);
