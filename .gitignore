@@ -1,4 +1,5 @@
 *.o
+*.iq
 rtlsdr_wsprd
-wspr_wisdom.dat
+fftw_wisdom.dat
 hashtable.txt

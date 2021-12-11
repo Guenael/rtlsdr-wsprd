@@ -46,13 +46,13 @@
 
 #define DF 375.0 / 256.0
 #define DT 1.0 / 375.0
-#define TWOPIDT 2.0 * M_PI *DT
+#define TWOPIDT 2.0 * M_PI * DT
 #define NIQ 45000
 #define NBITS 81
 #define NSYM 162
 #define NSPERSYM 256
 #define NFILT 256
-#define NSIG NSYM *NSPERSYM
+#define NSIG NSYM * NSPERSYM
 
 /* Possible PATIENCE options: FFTW_ESTIMATE, FFTW_ESTIMATE_PATIENT, FFTW_MEASURE, FFTW_PATIENT, FFTW_EXHAUSTIVE */
 #define PATIENCE FFTW_ESTIMATE
@@ -62,7 +62,7 @@ fftwf_plan PLAN1,
     PLAN3;
 int32_t printdata = 0;
 
-uint8_t pr3[NSYM] = {
+uint8_t pr3vector[NSYM] = {
     1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0,
     0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1,
     0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1,
@@ -206,9 +206,9 @@ void sync_and_demodulate(float *id, float *qd, long np,
 
                 totp = totp + p0 + p1 + p2 + p3;
                 cmet = (p1 + p3) - (p0 + p2);
-                ss = ss + cmet * (2 * pr3[i] - 1);
+                ss = ss + cmet * (2 * pr3vector[i] - 1);
                 if (mode == 2) {  // Compute soft symbols
-                    if (pr3[i]) {
+                    if (pr3vector[i]) {
                         fsymb[i] = p3 - p1;
                     } else {
                         fsymb[i] = p2 - p0;
@@ -450,7 +450,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
     fftwf_complex *fftin, *fftout;
 
     FILE *fp_fftw_wisdom_file, *fhash;
-    if ((fp_fftw_wisdom_file = fopen("wspr_wisdom.dat", "r"))) {  // Open FFTW wisdom
+    if ((fp_fftw_wisdom_file = fopen("fftw_wisdom.dat", "r"))) {  // Open FFTW wisdom
         fftwf_import_wisdom_from_file(fp_fftw_wisdom_file);
         fclose(fp_fftw_wisdom_file);
     }
@@ -636,7 +636,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
                                 p2 = sqrtf(p2);
                                 p3 = sqrtf(p3);
 
-                                ss = ss + (2 * pr3[k] - 1) * ((p1 + p3) - (p0 + p2));
+                                ss = ss + (2 * pr3vector[k] - 1) * ((p1 + p3) - (p0 + p2));
                                 pow = pow + p0 + p1 + p2 + p3;
                                 sync1 = ss / pow;
                             }
@@ -811,7 +811,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
     fftwf_free(fftin);
     fftwf_free(fftout);
 
-    if ((fp_fftw_wisdom_file = fopen("wspr_wisdom.dat", "w"))) {
+    if ((fp_fftw_wisdom_file = fopen("fftw_wisdom.dat", "w"))) {
         fftwf_export_wisdom_to_file(fp_fftw_wisdom_file);
         fclose(fp_fftw_wisdom_file);
     }
