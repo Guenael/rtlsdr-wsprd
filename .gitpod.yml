@@ -1,6 +1,7 @@
 
 tasks:
   - init: make
+
 github:
   prebuilds:
     # enable for the master/default branch (defaults to true)
