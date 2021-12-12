@@ -3,14 +3,10 @@
  * Copyright (c) 2016-2021, Guenael Jouchet (VA2GKA)
  * All rights reserved.
  *
- * This file is based on rtl-sdr project code and libraries:
- *   Github repository: https://github.com/osmocom/rtl-sdr
- *   Project web-page:  https://osmocom.org/projects/rtl-sdr/wiki
- *   Contributions:
- *     Copyright (C) 2012 by Steve Markgraf <steve{at}steve-m.de>
- *     Copyright (C) 2012 by Hoernchen <la{at}tfc-server.de>
- *     Copyright (C) 2012 by Kyle Keen <keenerd{at}gmail.com>
- *     Copyright (C) 2013 by Elias Oenal <EliasOenal{at}gmail.com>
+ * This project is based on rtl-sdr framework:
+ *   https://github.com/osmocom/rtl-sdr
+ * WSPR decoder used is distributed under GPLv3 licence, written by K9AN,
+ *   https://github.com/k9an/wsprcan
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -51,7 +47,7 @@
 
 // #pragma GCC diagnostic ignored "-Wformat-truncation"  // Was used with GCC
 
-/* Sampling definition for RTL devices */
+/* Sampling definition for RTL devices & WSPR protocol */
 #define SIGNAL_LENGHT       116                                 // EVAL, why not 119?
 #define SIGNAL_LENGHT_MAX   120
 #define SIGNAL_SAMPLE_RATE  375
@@ -66,7 +62,7 @@ struct receiver_state   rx_state;
 struct receiver_options rx_options;
 struct decoder_options  dec_options;
 struct decoder_results  dec_results[50];
-rtlsdr_dev_t            *rtl_device = NULL;
+static rtlsdr_dev_t     *rtl_device = NULL;
 
 
 /* Thread stuff for side decoding */
@@ -93,7 +89,8 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     int8_t *sigIn = (int8_t *)samples;
 
     /* CIC buffers/vars */
-    static int32_t  Ix1 = 0, Ix2 = 0, Qx1 = 0, Qx2 = 0;
+    static int32_t  Ix1 = 0, Ix2 = 0,
+                    Qx1 = 0, Qx2 = 0;
     static int32_t  Iy1 = 0, It1y = 0, It1z = 0,
                     Qy1 = 0, Qt1y = 0, Qt1z = 0;
     static int32_t  Iy2 = 0, It2y = 0, It2z = 0,
@@ -330,7 +327,7 @@ void saveSample(float *iSamples, float *qSamples) {
 }
 
 
-static void *wsprDecoder(void *arg) {
+static void *decoder(void *arg) {
     /* WSPR decoder use buffers of 45000 samples max. (hardcoded here)
        (120 sec max @ 375sps = 45000 samples)
        With the real duration (SIGNAL_LENGHT) = 375 * 116 = 43500 samples
@@ -686,10 +683,6 @@ int main(int argc, char **argv) {
     initrx_options();
     initDecoder_options();
 
-    /* RX buffer allocation */
-    rx_state.iSamples = malloc(sizeof(float) * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE);
-    rx_state.qSamples = malloc(sizeof(float) * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE);
-
     /* Stop condition setup */
     rx_state.exit_flag   = false;
     rx_state.decode_flag = false;
@@ -846,6 +839,11 @@ int main(int argc, char **argv) {
     /* Store the frequency used for the decoder */
     dec_options.freq = rx_options.dialfreq;
 
+    /* RX buffer allocation */
+    // EVAL pre-alloc in struct?
+    rx_state.iSamples = malloc(sizeof(float) * SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE);
+    rx_state.qSamples = malloc(sizeof(float) * SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE);
+
     /* If something goes wrong... */
     signal(SIGINT,  &sigint_callback_handler);
     signal(SIGTERM, &sigint_callback_handler);
@@ -981,7 +979,7 @@ int main(int argc, char **argv) {
     pthread_cond_init(&dec_state.ready_cond, NULL);
     pthread_mutex_init(&dec_state.ready_mutex, NULL);
     pthread_create(&dongle.thread, NULL, rtlsdr_rx, NULL);
-    pthread_create(&dec_state.thread, &dec_state.tattr, wsprDecoder, NULL);
+    pthread_create(&dec_state.thread, &dec_state.tattr, decoder, NULL);
 
     /* Main loop : Wait, read, decode */
     while (!rx_state.exit_flag && !(rx_options.maxloop && (nLoop >= rx_options.maxloop))) {

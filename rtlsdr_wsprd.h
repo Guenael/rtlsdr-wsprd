@@ -76,7 +76,7 @@ static void *rtlsdr_rx(void *arg);
 void postSpots(uint32_t n_results);
 void printSpots(uint32_t n_results);
 void saveSample(float *iSamples, float *qSamples);
-static void *wsprDecoder(void *arg);
+static void *decoder(void *arg);
 double atofs(char *s);
 int32_t parse_u64(char *s, uint64_t *const value);
 void initSampleStorage();
