@@ -35,7 +35,7 @@
 #include "./nhash.h"
 #include "./wsprd_utils.h"
 
-// FIXME -- Replace strcpy & strncpy by strcpy to prevent possible buffer overflow
+// EVAL -- Replace strcpy & strncpy by strcpy to prevent possible buffer overflow
 // #pragma GCC diagnostic ignored "-Wstringop-overflow"
 // #pragma GCC diagnostic ignored "-Wstringop-truncation"
 
