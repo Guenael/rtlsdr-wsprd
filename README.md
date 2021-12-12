@@ -15,7 +15,7 @@ This project aim at decoding WSPR signals using an RTL device, usually connected
 To install and use your dongle on a Raspberry Pi with a Rasberian OS:
 
 ```bash
-sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev ntp
+sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev ntp
 git clone https://github.com/Guenael/rtlsdr-wsprd
 cd rtlsdr-wsprd
 make
@@ -40,21 +40,21 @@ This application written in C does:
 
   1. Install a Linux compatible distro on your device (ex. Raspbian for RaspberryPi)
   1. Install dependencies & useful tools (for example, NTP for time synchronization). Example with a Debian based like Raspbian:
-     ```
-     sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev ntp
+     ```bash
+     sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev ntp
      ```
   1. Clone this repository:
-     ```
+     ```bash
      git clone https://github.com/Guenael/rtlsdr-wsprd
      ```
   1. Build the application:
-     ```
+     ```bash
      cd rtlsdr-wsprd
      make
      make install
      ```
   1. Start the application with your right parameters, ex. for the 2m band, with a fake callsign (A1XYZ):
-     ```
+     ```bash
      rtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29
      ```
 
@@ -63,7 +63,7 @@ This application written in C does:
   - Use ferrite bead on the USB cable to limit the QRN
   - Use an external clean power supply
   - Cut off the display (could help to reduce QRN)
-    ```
+    ```bash
     /opt/vc/bin/tvservice -o
     ```
   - Remove unused modules (for example, /etc/modules: #snd-bcm2835)
