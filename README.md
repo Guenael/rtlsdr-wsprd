@@ -2,12 +2,12 @@
 
 ![rtlsdr-wsprd](art/rtlsdr-wsprd-web.jpg)
 
-![Project Status](https://img.shields.io/badge/project-broken-red)
+![Project Status](https://img.shields.io/badge/status-broken-red)
 ![Workflow Status](https://img.shields.io/github/workflow/status/Guenael/rtlsdr-wsprd/CI)
 ![Last commit](https://img.shields.io/github/last-commit/Guenael/rtlsdr-wsprd)
 ![Commit activity](https://img.shields.io/github/commit-activity/m/Guenael/rtlsdr-wsprd)
-![Repo stars](https://img.shields.io/github/stars/Guenael/rtlsdr-wsprd?style=social)
-
+![LGTM Alerts](https://img.shields.io/lgtm/alerts/github/Guenael/rtlsdr-wsprd)
+![LGTM Grade](https://img.shields.io/lgtm/grade/cpp/github/Guenael/rtlsdr-wsprd)
 
 ## TL;DR
 
