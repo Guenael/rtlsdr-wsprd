@@ -54,19 +54,15 @@ This application written in C does:
 ## Installation
 
   1. Install a Linux compatible distro on your device.
-
      For Raspberry Pi, you can download official images here: https://www.raspberrypi.com/software/operating-systems/
-
   1. It's a good practice to update your OS. On a RaspberryPi, run this command usual:
   ```bash
   sudo apt-get update && sudo apt-get upgrade
   ```
-
   1. Install dependencies & useful tools (for example, NTP for time synchronization). Example with a Debian based like Raspbian:
   ```bash
   sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev libcurl4-gnutls-dev ntp git
   ```
-
   1. Install `rtl-sdr` library manually. **Do not use the librtlsdr-dev package on RaspberryPi** There is a know bug with this lib and rtlsdr_wsprd will not be able to get enough samples (don't decode anything & 100% CPU pattern).
   ```bash
   git clone https://github.com/osmocom/rtl-sdr
@@ -79,19 +75,16 @@ This application written in C does:
   cd ../..
   ```
   Note: You may have to re-plug you dongle if it was already connected, or play with `udev` if it is not automatically recognized.
-
   1. Clone this repository:
   ```bash
   git clone https://github.com/Guenael/rtlsdr-wsprd
   ```
-
   1. Build the application:
   ```bash
   cd rtlsdr-wsprd
   make
   sudo make install
   ```
-
   1. Finally, start the application with the right parameters/options for you (frequency, callsign, locator etc... Fake example below):
   ```bash
   rtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29
