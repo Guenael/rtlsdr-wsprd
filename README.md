@@ -78,7 +78,3 @@ Some manufacturers intergrate a 0.5ppm TCXO. It's the best second option, after 
 - NooElec NESDR SMART : Works fine out of the box
 - RTL-SDR Blog 1PPM TCXO : Works with some drift, require additional mass, or a better enclosure
 - Other no-name like : RT820, E4000, FC0012, FC0013, can work, but require modification and drift a lot
-
-Ex: NooElec NESDR SMArt - Premium RTL-SDR w/ Aluminum Enclosure, 0.5PPM TCXO
-
-https://www.nooelec.com/store/nesdr-smart.html
