@@ -58,44 +58,44 @@ This application written in C does:
      For Raspberry Pi, you can download official images here: https://www.raspberrypi.com/software/operating-systems/
   
   2. It's a good practice to update your OS. On a RaspberryPi, run this command usual:
-  ```bash
-  sudo apt-get update && sudo apt-get upgrade
-  ```
+     ```bash
+     sudo apt-get update && sudo apt-get upgrade
+     ```
   
   3. Install dependencies & useful tools (for example, NTP for time synchronization). Example with a Debian based like Raspbian:
-  ```bash
-  sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev libcurl4-gnutls-dev ntp git
-  ```
+     ```bash
+     sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev libcurl4-gnutls-dev ntp git
+     ```
   
   4. Install `rtl-sdr` library manually. **Do not use the librtlsdr-dev package on RaspberryPi** There is a know bug with this lib and rtlsdr_wsprd will not be able to get enough samples (don't decode anything & 100% CPU pattern).
-  ```bash
-  git clone https://github.com/osmocom/rtl-sdr
-  cd rtl-sdr
-  mkdir -p make
-  cd make
-  cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr -DDETACH_KERNEL_DRIVER=ON -Wno-dev ..
-  make
-  sudo make install
-  cd ../..
-  ```
+     ```bash
+     git clone https://github.com/osmocom/rtl-sdr
+     cd rtl-sdr
+     mkdir -p make
+     cd make
+     cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr -DDETACH_KERNEL_DRIVER=ON -Wno-dev ..
+     make
+     sudo make install
+     cd ../..
+     ```
   Note: You may have to re-plug you dongle if it was already connected, or play with `udev` if it is not automatically recognized.
   
   5. Clone this repository:
-  ```bash
-  git clone https://github.com/Guenael/rtlsdr-wsprd
-  ```
+     ```bash
+     git clone https://github.com/Guenael/rtlsdr-wsprd
+     ```
   
   6. Build the application:
-  ```bash
-  cd rtlsdr-wsprd
-  make
-  sudo make install
-  ```
+     ```bash
+     cd rtlsdr-wsprd
+     make
+     sudo make install
+     ```
   
   7. Finally, start the application with the right parameters/options for you (frequency, callsign, locator etc... Fake example below):
-  ```bash
-  rtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29
-  ```
+     ```bash
+     rtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29
+     ```
 
 ## Tips (for your Raspberry Pi and SDR dongles)
 
