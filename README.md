@@ -12,10 +12,10 @@
 ## TL;DR
 
 This project aim at decoding WSPR signals using an RTL device, usually connected to a Raspberry Pi.
-To install and use your dongle on a Raspberry Pi with a Rasberian OS:
+To install and use your dongle on a Raspberry Pi with a *Rasbian OS* with a *4.x* Linux kernel:
 
 ```bash
-sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev ntp
+sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev ntp git
 git clone https://github.com/Guenael/rtlsdr-wsprd
 cd rtlsdr-wsprd
 make
@@ -38,10 +38,16 @@ This application written in C does:
 
 ## Installation
 
-  1. Install a Linux compatible distro on your device (ex. Raspbian for RaspberryPi)
+  1. Install a Linux compatible distro on your device.
+     With *RasberryPi* devices, use a kernel *4.x ONLY*. There is a know bug related to later version 5.x.
+     You can use this image : https://downloads.raspberrypi.org/raspbian_lite/images/raspbian_lite-2019-04-09/
+     Update your OS as usual:
+     ```bash
+     sudo apt-get update && sudo apt-get upgrade
+     ```
   1. Install dependencies & useful tools (for example, NTP for time synchronization). Example with a Debian based like Raspbian:
      ```bash
-     sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev ntp
+     sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev ntp git
      ```
   1. Clone this repository:
      ```bash
@@ -78,3 +84,8 @@ Some manufacturers intergrate a 0.5ppm TCXO. It's the best second option, after 
 - NooElec NESDR SMART : Works fine out of the box
 - RTL-SDR Blog 1PPM TCXO : Works with some drift, require additional mass, or a better enclosure
 - Other no-name like : RT820, E4000, FC0012, FC0013, can work, but require modification and drift a lot
+
+## OS & Linux kernel requirement for RasperryPi devices
+
+I have no idea why this app works fine for RPi with a kernel 4.x and not 5.x. Using a x86_64, rtlsdr-wsprd works perfectly fine with both versions of the kernel. This is probably related to an issue with pthread, and I have to investinage this point.
+If you have some knowledge about this, your help is welcome!!
