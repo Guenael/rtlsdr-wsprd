@@ -25,4 +25,4 @@ clean:
 	rm -f *.o wsprd/*.o $(TARGETS) fftw_wisdom.dat hashtable.txt selftest.iq
 
 install:
-	install rtlsdr_wsprd /usr/local/lib/rtlsdr_wsprd
+	install rtlsdr_wsprd /usr/local/bin/rtlsdr_wsprd
