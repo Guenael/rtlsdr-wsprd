@@ -945,8 +945,8 @@ int main(int argc, char **argv) {
 
 
     /* Time alignment */
-    uint32_t sec = lTime.tv_sec % 120;
-    uint32_t usec = sec * 1000000 + lTime.tv_usec;
+    uint32_t sec   = lTime.tv_sec % 120;
+    uint32_t usec  = sec * 1000000 + lTime.tv_usec;
     uint32_t uwait = 120000000 - usec;
     printf("Wait for time sync (start in %d sec)\n\n", uwait / 1000000);
     printf("              Date  Time(z)    SNR     DT       Freq Dr    Call    Loc Pwr\n");
@@ -972,8 +972,8 @@ int main(int argc, char **argv) {
     while (!rx_state.exit_flag && !(rx_options.maxloop && (nLoop >= rx_options.maxloop))) {
         /* Wait for time Sync on 2 mins */
         gettimeofday(&lTime, NULL);
-        sec = lTime.tv_sec % 120;
-        usec = sec * 1000000 + lTime.tv_usec;
+        sec   = lTime.tv_sec % 120;
+        usec  = sec * 1000000 + lTime.tv_usec;
         uwait = 120000000 - usec + 10000;  // Adding 10ms, to be sure to reach this next minute
         usleep(uwait);
 
