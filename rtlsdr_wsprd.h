@@ -28,58 +28,21 @@
 #endif
 
 
-struct receiver_state {
-    /* Variables used for stop conditions */
-    bool exit_flag;
-    bool decode_flag;
-
-    /* Buffer used for sampling */
-    float *iSamples;
-    float *qSamples;
-
-    /* Simple index */
-    uint32_t iqIndex;
-};
-
-
-/* Option & config of the receiver */
-struct receiver_options {
-    uint32_t dialfreq;
-    uint32_t realfreq;
-    int32_t  gain;
-    int32_t  autogain;
-    int32_t  ppm;
-    int32_t  shift;
-    int32_t  upconverter;
-    int32_t  directsampling;
-    int32_t  maxloop;
-    int32_t  device;
-    bool     selftest;
-    bool     writefile;
-    bool     readfile;
-    char     filename[33];
-    char     date[7];
-    char     uttime[5];
-};
-
-
-static void rtlsdr_callback(unsigned char *samples, uint32_t sigLenght, void *ctx);
+static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void *ctx);
+static void sigint_callback_handler(int signum);
 static void *rtlsdr_rx(void *arg);
+static void *decoder(void *arg);
+void initSampleStorage();
+void initrx_options();
+void initDecoder_options();
 void postSpots(uint32_t n_results);
 void printSpots(uint32_t n_results);
 void saveSample(float *iSamples, float *qSamples);
-static void *decoder(void *arg);
 double atofs(char *s);
 int32_t parse_u64(char *s, uint64_t *const value);
-void initSampleStorage();
-void initDecoder_options();
-void initrx_options();
-void sigint_callback_handler(int signum);
 int32_t readRawIQfile(float *iSamples, float *qSamples, char *filename);
 int32_t writeRawIQfile(float *iSamples, float *qSamples, char *filename);
 void decodeRecordedFile(char *filename);
 float whiteGaussianNoise(float factor);
 int32_t decoderSelfTest();
 void usage(void);
-int32_t readRawIQfile(float *iSamples, float *qSamples, char *filename);
-int32_t writeRawIQfile(float *iSamples, float *qSamples, char *filename);
