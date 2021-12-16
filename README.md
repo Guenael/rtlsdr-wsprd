@@ -11,7 +11,7 @@
 
 ## TL;DR
 
-This project aim at decoding WSPR signals using an RTL device, usually connected to a Raspberry Pi.
+This project aim at decoding [WSPR](https://en.wikipedia.org/wiki/WSPR_(amateur_radio_software)) signals using an [RTL device](https://osmocom.org/projects/rtl-sdr/wiki/Rtl-sdr), usually connected to a [Raspberry Pi](https://www.raspberrypi.org/).
 To install and use your dongle on a Raspberry Pi with a Raspberry Pi OS, follow these steps:
 
 ```bash
@@ -40,7 +40,7 @@ rtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29
 
 ## Overview
 
-This non-interactive application allows automatic reporting of WSPR spots on WSPRnet. The initial idea was to allow a small computer like a Raspberry Pi and a RTL-SDR device to send WSPR reports for VHF/UHF bands. This kind of lightweight setup could run continuously without maintenance and help to get additional propagation reports. The code is massively based on Steven Franke (K9AN) implementation of Joe Taylor (K1JT) publication and work.
+This non-interactive application allows automatic reporting of WSPR spots on [WSPRnet](https://wsprnet.org). The initial idea was to allow a small computer like a Raspberry Pi and a RTL-SDR device to send WSPR reports for [VHF/UHF](https://en.wikipedia.org/wiki/Amateur_radio_frequency_allocations#Very_high_frequencies_and_ultra_high_frequencies) bands. This kind of lightweight setup could run continuously without maintenance and help to get additional propagation reports. The code is massively based on Steven Franke ([K9AN](https://github.com/k9an)) implementation of Joe Taylor ([K1JT](https://en.wikipedia.org/wiki/Joseph_Hooton_Taylor_Jr.)) publication and work.
 
 This application written in C does:
 
@@ -55,19 +55,19 @@ This application written in C does:
 
   1. Install a Linux compatible distro on your device.
      
-     For Raspberry Pi, you can download official images here: https://www.raspberrypi.com/software/operating-systems/
+     For Raspberry Pi, you can download official images [here](https://www.raspberrypi.com/software/operating-systems/).
   
-  2. It's a good practice to update your OS. On a RaspberryPi, run this command usual:
+  2. It's a good practice to update your OS. With Pi OS, run this command as usual:
      ```bash
      sudo apt-get update && sudo apt-get upgrade
      ```
-  
-  3. Install dependencies & useful tools (for example, NTP for time synchronization). Example with a Debian based like Raspbian:
+
+  3. Install dependencies & useful tools (for example, [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) for time synchronization). Example with a Debian based OS, like Rasbian, or Raspberry Pi OS:
      ```bash
      sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev libcurl4-gnutls-dev ntp git
      ```
   
-  4. Install `rtl-sdr` library manually. **Do not use the librtlsdr-dev package on RaspberryPi** There is a know bug with this lib and rtlsdr_wsprd will not be able to get enough samples (don't decode anything & 100% CPU pattern).
+  4. Install `rtl-sdr` library manually. **Do not use the `librtlsdr-dev` package on Raspberry PiOS**. There is a know bug with this lib and rtlsdr_wsprd will not be able to get enough samples (don't decode anything & 100% CPU pattern).
      ```bash
      git clone https://github.com/osmocom/rtl-sdr
      cd rtl-sdr
@@ -78,7 +78,7 @@ This application written in C does:
      sudo make install
      cd ../..
      ```
-  Note: You may have to re-plug you dongle if it was already connected, or play with `udev` if it is not automatically recognized.
+  Note: You may have to re-plug you dongle if it was already connected, or play with `udev` if not automatically detected.
   
   5. Clone this repository:
      ```bash
