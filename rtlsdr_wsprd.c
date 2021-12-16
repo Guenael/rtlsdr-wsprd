@@ -249,7 +249,7 @@ static void *decoder(void *arg) {
         if (rx_state.exit_flag)
             break;  /* Abort case, final sig */
 
-        /* Get the date at the begining of the decoding process */
+        /* Get the date at the beginning of the decoding process */
         time_t rawtime;
         time ( &rawtime );
         struct tm *gtm = gmtime(&rawtime);
