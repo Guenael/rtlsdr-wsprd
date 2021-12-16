@@ -1,11 +1,10 @@
 CC = clang
-CFLAGS= -O3 -std=gnu11 -Wall
+CFLAGS = -O3 -std=gnu17
 LIBS = -lusb-1.0 -lrtlsdr -lpthread -lfftw3f -lcurl -lm
 
 # Note
 #   gcc is a bit faster that clang on this app
-#   std=gnu11 beacuse gnu17 is not available on Rasbian Stretch
-#   for dbg: -fsanitize=address
+#   for dbg: -Wall -fsanitize=address
 
 OBJS = rtlsdr_wsprd.o wsprd/wsprd.o wsprd/wsprsim_utils.o wsprd/wsprd_utils.o wsprd/tab.o wsprd/fano.o wsprd/nhash.o
 

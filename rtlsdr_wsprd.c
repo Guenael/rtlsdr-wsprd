@@ -1,5 +1,5 @@
 /*
- * rtlsrd-wsprd, WSPR daemon for RTL receivers, Guenael Jouchet (VA2GKA)
+ * rtlsrd-wsprd, WSPR daemon for RTL receivers
  * Copyright (C) 2016-2021, Guenael Jouchet (VA2GKA)
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,43 +32,74 @@
 #include "./wsprd/wsprsim_utils.h"
 
 
-// #pragma GCC diagnostic ignored "-Wformat-truncation"  // Was used with GCC
+#define safe_cond_signal(n, m) pthread_mutex_lock(m); pthread_cond_signal(n); pthread_mutex_unlock(m)
+#define safe_cond_wait(n, m) pthread_mutex_lock(m); pthread_cond_wait(n, m); pthread_mutex_unlock(m)
+
 
 /* Sampling definition for RTL devices & WSPR protocol */
-#define SIGNAL_LENGHT       116                                 // EVAL, why not 119?
-#define SIGNAL_LENGHT_MAX   120
+#define SIGNAL_LENGHT       120
 #define SIGNAL_SAMPLE_RATE  375
 #define SAMPLING_RATE       2400000
-#define FS4_RATE            SAMPLING_RATE / 4                   // = 600 kHz
-#define DOWNSAMPLING        SAMPLING_RATE / SIGNAL_SAMPLE_RATE  // = 6400
-#define DEFAULT_BUF_LENGTH  (4 * 16384)                         // = 65536
+#define FS4_RATE            SAMPLING_RATE / 4
+#define DOWNSAMPLING        SAMPLING_RATE / SIGNAL_SAMPLE_RATE
+#define DEFAULT_BUF_LENGTH  (4 * 16384)
+#define FIR_TAPS            32
 
 
-/* Global declaration for states & options */
+/* Thread for decoding */
+struct decoder_state {
+    pthread_t        thread;
+    pthread_attr_t   tattr;
+    pthread_cond_t   ready_cond;
+    pthread_mutex_t  ready_mutex;
+};
+static struct decoder_state decState;
+
+
+/* Thread for RX (blocking function used) & RTL struct */
+static pthread_t     dongle;
+static rtlsdr_dev_t *rtl_device = NULL;
+
+
+/* receiver State & Options */
+struct receiver_state {
+    /* Variables used for stop conditions */
+    bool     exit_flag;
+
+    /* Double buffering used for sampling */
+    float    iSamples[2][SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
+    float    qSamples[2][SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
+
+    /* Sample index */
+    uint32_t iqIndex;
+
+    /* Buffer selected (0 or 1) */
+    uint32_t bufferIndex;
+};
+
+struct receiver_options {
+    uint32_t dialfreq;
+    uint32_t realfreq;
+    int32_t  gain;
+    int32_t  autogain;
+    int32_t  ppm;
+    int32_t  shift;
+    int32_t  upconverter;
+    int32_t  directsampling;
+    int32_t  maxloop;
+    int32_t  device;
+    bool     selftest;
+    bool     writefile;
+    bool     readfile;
+    char     filename[33];
+};
+
+
+/* states & options are shared with other external objects */
 struct receiver_state   rx_state;
 struct receiver_options rx_options;
 struct decoder_options  dec_options;
 struct decoder_results  dec_results[50];
-static rtlsdr_dev_t     *rtl_device = NULL;
-
-
-/* Thread stuff for side decoding */
-struct decoder_state {
-    pthread_t        thread;
-    pthread_attr_t   tattr;
-
-    pthread_rwlock_t rw;
-    pthread_cond_t   ready_cond;
-    pthread_mutex_t  ready_mutex;
-};
-struct decoder_state dec_state;
-
-
-/* Thread stuff for separate RX (blocking function) */
-struct dongle_state {
-    pthread_t thread;
-};
-struct dongle_state dongle;
 
 
 /* Callback for each buffer received */
@@ -88,29 +119,25 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
        Using : Octave/MATLAB code for generating compensation FIR coefficients
        URL : https://github.com/WestCoastDSP/CIC_Octave_Matlab
      */
+    /* Coefs with R=6400, M=1, N=2, F0=0.45, L=32 */
     const static float zCoef[33] = {
-        0.0003583750, -0.0033012200, -0.0006091820, 0.0067293400,
-        0.0014032700, -0.0142768000, -0.0031078200, 0.0273501000,
-        0.0065224800, -0.0482825000, -0.0137258000, 0.0820597000,
-        0.0314890000, -0.1420800000, -0.0913795000, 0.2713470000,
-        0.5000000000,
-        0.2713470000, -0.0913795000, -0.1420800000, 0.0314890000,
-        0.0820597000, -0.0137258000, -0.0482825000, 0.0065224800,
-        0.0273501000, -0.0031078200, -0.0142768000, 0.0014032700,
-        0.0067293400, -0.0006091820, -0.0033012200, 0.0003583750,
+        -0.0018102029,  0.0021374727,  0.0039187458, -0.0025019918,
+        -0.0097042058,  0.0007581166,  0.0199914435,  0.0076257829,
+        -0.0333186890, -0.0286290175,  0.0447517831,  0.0705913907,
+        -0.0423330196, -0.1501946045, -0.0158817961,  0.3175072196,
+         0.5000000000,
+         0.3175072196, -0.0158817961, -0.1501946045, -0.0423330196,
+         0.0705913907,  0.0447517831, -0.0286290175, -0.0333186890,
+         0.0076257829,  0.0199914435,  0.0007581166, -0.0097042058,
+        -0.0025019918,  0.0039187458,  0.0021374727, -0.0018102029,
     };
 
     /* FIR compensation filter buffers */
-    static float firI[32] = {0.0},
-                 firQ[32] = {0.0};
-
-    /* Convert unsigned to signed */
-    for (uint32_t i = 0; i < samples_count; i++) {
-        sigIn[i] ^= 0x80;  // XOR with a binary mask to flip the first bit (sign)
-    }
+    static float firI[FIR_TAPS] = {0.0},
+                 firQ[FIR_TAPS] = {0.0};
 
     /* Economic mixer @ fs/4 (upper band)
-       At fs/4, sin and cosin calculation are no longer necessary.
+       At fs/4, sin and cosin calculations are no longer required.
 
                0   | pi/2 |  pi  | 3pi/2
              ----------------------------
@@ -119,20 +146,20 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
 
        out_I = in_I * cos(x) - in_Q * sin(x)
        out_Q = in_Q * cos(x) + in_I * sin(x)
-       (Weaver technique, keep the upper band, IQ inverted on RTL devices)
+       (Keep the upper band, IQ inverted on RTL devices)
     */
     int8_t tmp;
     for (uint32_t i = 0; i < samples_count; i += 8) {
-        tmp = -sigIn[i + 3];
-        sigIn[i + 3] = sigIn[i + 2];
-        sigIn[i + 2] = tmp;
-
-        sigIn[i + 4] = -sigIn[i + 4];
-        sigIn[i + 5] = -sigIn[i + 5];
-
-        tmp = -sigIn[i + 6];
-        sigIn[i + 6] = sigIn[i + 7];
-        sigIn[i + 7] = tmp;
+        sigIn[i  ] ^=  0x80;  // Unsigned to signed conversion using
+        sigIn[i+1] ^=  0x80;  //   XOR as a binary mask to flip the first bit
+        tmp         =  (sigIn[i+3] ^ 0x80);  // CHECK -127 alt. possible issue ?
+        sigIn[i+3]  =  (sigIn[i+2] ^ 0x80);
+        sigIn[i+2]  = -tmp;
+        sigIn[i+4]  = -(sigIn[i+4] ^ 0x80);
+        sigIn[i+5]  = -(sigIn[i+5] ^ 0x80);
+        tmp         =  (sigIn[i+6] ^ 0x80);
+        sigIn[i+6]  =  (sigIn[i+7] ^ 0x80);
+        sigIn[i+7]  = -tmp;
     }
 
     /* CIC decimator (N=2)
@@ -141,10 +168,9 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
              * Understanding cascaded integrator-comb filters
                http://www.embedded.com/design/configurable-systems/4006446/Understanding-cascaded-integrator-comb-filters
     */
-    for (int32_t i = 0; i < samples_count / 2; i++) {
+    for (int32_t i = 0; i < samples_count / 2; i++) {  // UPDATE: i+=2 & fix below
         /* Integrator stages (N=2) */
-        // EVAL: option to move sigIn in float here
-        Ix1 += (int32_t)sigIn[i * 2];
+        Ix1 += (int32_t)sigIn[i * 2];  // EVAL: option to move sigIn in float here
         Qx1 += (int32_t)sigIn[i * 2 + 1];
         Ix2 += Ix1;
         Qx2 += Qx1;
@@ -154,8 +180,8 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
         if (decimationIndex <= DOWNSAMPLING) {
             continue;
         }
+        decimationIndex = 0;
 
-        // EVAL possible optimization here
         /* 1st Comb */
         Iy1  = Ix2 - It1z;
         It1z = It1y;
@@ -173,57 +199,119 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
         Qt2y = Qy1;
 
         /* FIR compensation filter */
-        float Isum = 0.0, Qsum = 0.0;
-        for (uint32_t j = 0; j < 32; j++) {
+        float Isum = 0.0,
+              Qsum = 0.0;
+        for (uint32_t j = 0; j < FIR_TAPS; j++) {
             Isum += firI[j] * zCoef[j];
             Qsum += firQ[j] * zCoef[j];
-            if (j < 31) {
+            if (j < FIR_TAPS-1) {
                 firI[j] = firI[j + 1];
                 firQ[j] = firQ[j + 1];
             }
         }
-        firI[31] = (float)Iy2;
-        firQ[31] = (float)Qy2;
-        Isum += firI[31] * zCoef[32];
-        Qsum += firQ[31] * zCoef[32];
+        firI[FIR_TAPS-1] = (float)Iy2;
+        firQ[FIR_TAPS-1] = (float)Qy2;
+        Isum += firI[FIR_TAPS-1] * zCoef[FIR_TAPS];
+        Qsum += firQ[FIR_TAPS-1] * zCoef[FIR_TAPS];
 
         /* Save the result in the buffer */
         if (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE)) {
-            /* Lock the buffer during writing */
-            pthread_rwlock_wrlock(&dec_state.rw);
-            rx_state.iSamples[rx_state.iqIndex] = Isum / (8192.0 * DOWNSAMPLING);
-            rx_state.qSamples[rx_state.iqIndex] = Qsum / (8192.0 * DOWNSAMPLING);
-            pthread_rwlock_unlock(&dec_state.rw);
+            rx_state.iSamples[rx_state.bufferIndex][rx_state.iqIndex] = Isum / (32768.0 * DOWNSAMPLING);
+            rx_state.qSamples[rx_state.bufferIndex][rx_state.iqIndex] = Qsum / (32768.0 * DOWNSAMPLING);
             rx_state.iqIndex++;
-        } else {
-            if (rx_state.decode_flag == false) {
-                /* Send a signal to the other thread to start the decoding */
-                pthread_mutex_lock(&dec_state.ready_mutex);
-                pthread_cond_signal(&dec_state.ready_cond);
-                pthread_mutex_unlock(&dec_state.ready_mutex);
-                rx_state.decode_flag = true;
-            }
         }
-        decimationIndex = 0;
     }
 }
 
 
-/* Thread for RX blocking function */
-static void *rtlsdr_rx(void *arg) {
-    /* Read & blocking call */
-    rtlsdr_read_async(rtl_device, rtlsdr_callback, NULL, 0, DEFAULT_BUF_LENGTH);
-    exit(0);
-    return 0;
+static void sigint_callback_handler(int signum) {
+    fprintf(stderr, "Signal caught %d, exiting!\n", signum);
+    rx_state.exit_flag = true;
+    rtlsdr_cancel_async(rtl_device);
 }
 
 
+/* Thread used for this RX blocking function */
+static void *rtlsdr_rx(void *arg) {
+    rtlsdr_read_async(rtl_device, rtlsdr_callback, NULL, 0, DEFAULT_BUF_LENGTH);
+    rtlsdr_cancel_async(rtl_device);
+    return NULL;
+}
+
+
+/* Thread used for the decoder */
+static void *decoder(void *arg) {
+    int32_t n_results = 0;
+
+    while (!rx_state.exit_flag) {
+        safe_cond_wait(&decState.ready_cond, &decState.ready_mutex);
+
+        if (rx_state.exit_flag)
+            break;  /* Abort case, final sig */
+
+        /* Get the date at the begining of the decoding process */
+        time_t rawtime;
+        time ( &rawtime );
+        struct tm *gtm = gmtime(&rawtime);
+        snprintf(dec_options.date, sizeof(dec_options.date), "%02d%02d%02d", gtm->tm_year - 100, gtm->tm_mon + 1, gtm->tm_mday);
+        snprintf(dec_options.uttime, sizeof(dec_options.uttime), "%02d%02d", gtm->tm_hour, gtm->tm_min);
+
+        /* Select the previous transmission */
+        uint32_t prevBuffer = (rx_state.bufferIndex + 1) % 2;
+
+        /* Search & decode the signal */
+        wspr_decode(rx_state.iSamples[prevBuffer],
+                    rx_state.qSamples[prevBuffer],
+                    SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE,
+                    dec_options,
+                    dec_results,
+                    &n_results);
+        saveSample(rx_state.iSamples[prevBuffer], rx_state.qSamples[prevBuffer]);
+        postSpots(n_results);
+        printSpots(n_results);
+    }
+    return NULL;
+}
+
+
+/* Double buffer management */
+void initSampleStorage() {
+    rx_state.bufferIndex = 0;
+    rx_state.iqIndex     = 0;
+}
+
+
+/* Default options for the receiver */
+void initrx_options() {
+    rx_options.gain           = 290;
+    rx_options.autogain       = 0;
+    rx_options.ppm            = 0;
+    rx_options.shift          = 0;
+    rx_options.directsampling = 0;
+    rx_options.maxloop        = 0;
+    rx_options.device         = 0;
+    rx_options.selftest       = false;
+    rx_options.writefile      = false;
+    rx_options.readfile       = false;
+}
+
+
+/* Default options for the decoder */
+void initDecoder_options() {
+    dec_options.usehashtable  = 0;
+    dec_options.npasses       = 2;
+    dec_options.subtraction   = 1;
+    dec_options.quickmode     = 0;
+}
+
+
+/* Report on WSPRnet */
 void postSpots(uint32_t n_results) {
     CURL *curl;
     CURLcode res;
     char url[256];
 
-    // TODO -- no spot
+    // PLANNED -- no spot case
     // if (n_results == 0) {
     //     return;
     // }
@@ -314,47 +402,6 @@ void saveSample(float *iSamples, float *qSamples) {
 }
 
 
-static void *decoder(void *arg) {
-    /* WSPR decoder use buffers of 45000 samples max. (hardcoded here)
-       (120 sec max @ 375sps = 45000 samples)
-       With the real duration (SIGNAL_LENGHT) = 375 * 116 = 43500 samples
-    */
-    static float iSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
-    static float qSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
-    static uint32_t samples_len;
-    int32_t n_results = 0;
-
-    while (!rx_state.exit_flag) {
-        pthread_mutex_lock(&dec_state.ready_mutex);
-        pthread_cond_wait(&dec_state.ready_cond, &dec_state.ready_mutex);
-        pthread_mutex_unlock(&dec_state.ready_mutex);
-
-        if (rx_state.exit_flag)
-            break;  /* Abort case, final sig */
-
-        /* Lock the buffer access and make a local copy */
-        pthread_rwlock_wrlock(&dec_state.rw);
-        memcpy(iSamples, rx_state.iSamples, rx_state.iqIndex * sizeof(float));
-        memcpy(qSamples, rx_state.qSamples, rx_state.iqIndex * sizeof(float));
-        samples_len = rx_state.iqIndex;  // Overkill ?
-        pthread_rwlock_unlock(&dec_state.rw);
-
-        /* Date and time will be updated/overload during the search & decoding process
-           Make a simple copy
-        */
-        memcpy(dec_options.date, rx_options.date, sizeof(rx_options.date));
-        memcpy(dec_options.uttime, rx_options.uttime, sizeof(rx_options.uttime));
-
-        /* Search & decode the signal */
-        wspr_decode(iSamples, qSamples, samples_len, dec_options, dec_results, &n_results);
-        saveSample(iSamples, qSamples);
-        postSpots(n_results);
-        printSpots(n_results);
-    }
-    pthread_exit(NULL);
-}
-
-
 double atofs(char *s) {
     /* standard suffixes */
     char last;
@@ -411,45 +458,8 @@ int32_t parse_u64(char *s, uint64_t *const value) {
 }
 
 
-/* Reset flow control variable & decimation variables */
-void initSampleStorage() {
-    rx_state.decode_flag      = false;
-    rx_state.iqIndex          = 0;
-}
-
-
-/* Default options for the decoder */
-void initDecoder_options() {
-    dec_options.usehashtable  = 0;
-    dec_options.npasses       = 2;
-    dec_options.subtraction   = 1;
-    dec_options.quickmode     = 0;
-}
-
-
-/* Default options for the receiver */
-void initrx_options() {
-    rx_options.gain           = 290;
-    rx_options.autogain       = 0;
-    rx_options.ppm            = 0;
-    rx_options.shift          = 0;
-    rx_options.directsampling = 0;
-    rx_options.maxloop        = 0;
-    rx_options.device         = 0;
-    rx_options.selftest       = false;
-    rx_options.writefile      = false;
-    rx_options.readfile       = false;
-}
-
-
-void sigint_callback_handler(int signum) {
-    fprintf(stdout, "Caught signal %d\n", signum);
-    rx_state.exit_flag = true;
-}
-
-
 int32_t readRawIQfile(float *iSamples, float *qSamples, char *filename) {
-    float filebuffer[2 * SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE];  // Allocate the max. size allowed
+    float filebuffer[2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
     FILE *fd = fopen(filename, "rb");
 
     if (fd == NULL) {
@@ -463,12 +473,12 @@ int32_t readRawIQfile(float *iSamples, float *qSamples, char *filename) {
     fseek(fd, 0L, SEEK_SET);
 
 
-    /* Limit the file/buffer to 45000 samples (120 sec signal) */
-    if (recsize > SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE) {
-        recsize = SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE;
+    /* Limit the file/buffer to the max samples */
+    if (recsize > SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) {
+        recsize = SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE;
     }
 
-    /* Read the iq file */
+    /* Read the IQ file */
     int32_t nread = fread(filebuffer, sizeof(float), 2 * recsize, fd);
     if (nread != 2 * recsize) {
         fprintf(stderr, "Cannot read all the data! %d\n", nread);
@@ -514,8 +524,8 @@ int32_t writeRawIQfile(float *iSamples, float *qSamples, char *filename) {
 
 
 void decodeRecordedFile(char *filename) {
-    static float iSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
-    static float qSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
+    static float iSamples[SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE] = {0};
+    static float qSamples[SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE] = {0};
     static uint32_t samples_len;
     int32_t n_results = 0;
 
@@ -565,9 +575,9 @@ float whiteGaussianNoise(float factor) {
 
 
 int32_t decoderSelfTest() {
-    static float iSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
-    static float qSamples[SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE] = {0};
-    static uint32_t samples_len = SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE;
+    static float iSamples[SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE] = {0};
+    static float qSamples[SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE] = {0};
+    static uint32_t samples_len = SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE;
     int32_t n_results = 0;
 
     unsigned char symbols[162];
@@ -585,19 +595,19 @@ int32_t decoderSelfTest() {
     double phi = 0.0;
     double df  = 375.0 / 256.0;
     double dt  = 1 / 375.0;
-    double twopidt = 8.0 * atan(1.0) / 375.0;
 
     // Add signal
     for (int i = 0; i < 162; i++) {
-        double dphi = twopidt * (f0 + ( (double)symbols[i]-1.5) * df);
+        double dphi = 2.0 * M_PI * dt * (f0 + ( (double)symbols[i]-1.5) * df);
         for (int j = 0; j < 256; j++) {
             int index = t0 / dt + 256 * i + j;
             iSamples[index] = amp * cos(phi) + whiteGaussianNoise(wgn);
             qSamples[index] = amp * sin(phi) + whiteGaussianNoise(wgn);
-            phi = phi + dphi;
+            phi += dphi;
         }
     }
 
+    /* Save the test sample */
     writeRawIQfile(iSamples, qSamples, "selftest.iq");
 
     /* Search & decode the signal */
@@ -672,7 +682,6 @@ int main(int argc, char **argv) {
 
     /* Stop condition setup */
     rx_state.exit_flag   = false;
-    rx_state.decode_flag = false;
     uint32_t nLoop = 0;
 
     if (argc <= 1)
@@ -826,11 +835,6 @@ int main(int argc, char **argv) {
     /* Store the frequency used for the decoder */
     dec_options.freq = rx_options.dialfreq;
 
-    /* RX buffer allocation */
-    // EVAL pre-alloc in struct?
-    rx_state.iSamples = malloc(sizeof(float) * SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE);
-    rx_state.qSamples = malloc(sizeof(float) * SIGNAL_LENGHT_MAX * SIGNAL_SAMPLE_RATE);
-
     /* If something goes wrong... */
     signal(SIGINT,  &sigint_callback_handler);
     signal(SIGTERM, &sigint_callback_handler);
@@ -921,17 +925,14 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-
-    /* Time & date tools */
-    time_t rawtime;
-    time(&rawtime);
-    struct tm *gtm = gmtime(&rawtime);
+    /* Date-time info & alignment */
     struct timeval lTime;
-    gettimeofday(&lTime, NULL);
-
+    time_t rawtime;
+    time ( &rawtime );
+    struct tm *gtm = gmtime(&rawtime);
 
     /* Print used parameter */
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.3.1\n",
+    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.4.0\n",
            gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
     printf("  Callsign     : %s\n", dec_options.rcall);
     printf("  Locator      : %s\n", dec_options.rloc);
@@ -943,8 +944,8 @@ int main(int argc, char **argv) {
     else
         printf("  Gain         : %d dB\n", rx_options.gain / 10);
 
-
-    /* Time alignment */
+    /* Wait for timing alignment */
+    gettimeofday(&lTime, NULL);
     uint32_t sec   = lTime.tv_sec % 120;
     uint32_t usec  = sec * 1000000 + lTime.tv_usec;
     uint32_t uwait = 120000000 - usec;
@@ -953,20 +954,19 @@ int main(int argc, char **argv) {
 
     /* Prepare a low priority param for the decoder thread */
     struct sched_param param;
-    pthread_attr_init(&dec_state.tattr);
-    pthread_attr_setschedpolicy(&dec_state.tattr, SCHED_RR);
-    pthread_attr_getschedparam(&dec_state.tattr, &param);
+    pthread_attr_init(&decState.tattr);
+    pthread_attr_setschedpolicy(&decState.tattr, SCHED_RR);
+    pthread_attr_getschedparam(&decState.tattr, &param);
     param.sched_priority = 90;  // = sched_get_priority_min();
-    pthread_attr_setschedparam(&dec_state.tattr, &param);
+    pthread_attr_setschedparam(&decState.tattr, &param);
 
     /* Create a thread and stuff for separate decoding
        Info : https://computing.llnl.gov/tutorials/pthreads/
     */
-    pthread_rwlock_init(&dec_state.rw, NULL);
-    pthread_cond_init(&dec_state.ready_cond, NULL);
-    pthread_mutex_init(&dec_state.ready_mutex, NULL);
-    pthread_create(&dongle.thread, NULL, rtlsdr_rx, NULL);
-    pthread_create(&dec_state.thread, &dec_state.tattr, decoder, NULL);
+    pthread_cond_init(&decState.ready_cond, NULL);
+    pthread_mutex_init(&decState.ready_mutex, NULL);
+    pthread_create(&dongle, NULL, rtlsdr_rx, NULL);
+    pthread_create(&decState.thread, &decState.tattr, decoder, NULL);
 
     /* Main loop : Wait, read, decode */
     while (!rx_state.exit_flag && !(rx_options.maxloop && (nLoop >= rx_options.maxloop))) {
@@ -974,22 +974,14 @@ int main(int argc, char **argv) {
         gettimeofday(&lTime, NULL);
         sec   = lTime.tv_sec % 120;
         usec  = sec * 1000000 + lTime.tv_usec;
-        uwait = 120000000 - usec + 10000;  // Adding 10ms, to be sure to reach this next minute
+        uwait = 120000000 - usec;
         usleep(uwait);
 
-        /* Use the Store the date at the begin of the frame */
-        time(&rawtime);
-        gtm = gmtime(&rawtime);
-        snprintf(rx_options.date, sizeof(rx_options.date), "%02d%02d%02d", gtm->tm_year - 100, gtm->tm_mon + 1, gtm->tm_mday);
-        snprintf(rx_options.uttime, sizeof(rx_options.uttime), "%02d%02d", gtm->tm_hour, gtm->tm_min);
+        /* Switch to the other buffer and trigger the decoder */
+        rx_state.bufferIndex = (rx_state.bufferIndex + 1) % 2;
+        rx_state.iqIndex = 0;
+        safe_cond_signal(&decState.ready_cond, &decState.ready_mutex);
 
-        /* Start to store the samples */
-        initSampleStorage();
-
-        while ((rx_state.exit_flag == false) &&
-               (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE))) {
-            usleep(250000);
-        }
         nLoop++;
     }
 
@@ -999,20 +991,17 @@ int main(int argc, char **argv) {
     /* Close the RTL device */
     rtlsdr_close(rtl_device);
 
-    printf("Bye!\n");
-
     /* Wait the thread join (send a signal before to terminate the job) */
-    pthread_mutex_lock(&dec_state.ready_mutex);
-    pthread_cond_signal(&dec_state.ready_cond);
-    pthread_mutex_unlock(&dec_state.ready_mutex);
-    pthread_join(dec_state.thread, NULL);
-    pthread_join(dongle.thread, NULL);
+    safe_cond_signal(&decState.ready_cond, &decState.ready_mutex);
+    pthread_join(decState.thread, NULL);
+    pthread_join(dongle, NULL);
 
     /* Destroy the lock/cond/thread */
-    pthread_rwlock_destroy(&dec_state.rw);
-    pthread_cond_destroy(&dec_state.ready_cond);
-    pthread_mutex_destroy(&dec_state.ready_mutex);
+    pthread_cond_destroy(&decState.ready_cond);
+    pthread_mutex_destroy(&decState.ready_mutex);
     pthread_exit(NULL);
+
+    printf("Bye!\n");
 
     return EXIT_SUCCESS;
 }
