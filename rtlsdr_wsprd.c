@@ -71,10 +71,13 @@ struct receiver_state {
     float    qSamples[2][SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
 
     /* Sample index */
-    uint32_t iqIndex;
+    uint32_t iqIndex[2];
 
     /* Buffer selected (0 or 1) */
     uint32_t bufferIndex;
+
+    /* Time at the begining of the frame to decode */
+    struct tm *gtm;
 };
 
 struct receiver_options {
@@ -215,10 +218,11 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
         Qsum += firQ[FIR_TAPS-1] * zCoef[FIR_TAPS];
 
         /* Save the result in the buffer */
-        if (rx_state.iqIndex < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE)) {
-            rx_state.iSamples[rx_state.bufferIndex][rx_state.iqIndex] = Isum / (32768.0 * DOWNSAMPLING);
-            rx_state.qSamples[rx_state.bufferIndex][rx_state.iqIndex] = Qsum / (32768.0 * DOWNSAMPLING);
-            rx_state.iqIndex++;
+        uint32_t idx = rx_state.bufferIndex;
+        if (rx_state.iqIndex[idx] < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE)) {
+            rx_state.iSamples[idx][rx_state.iqIndex[idx]] = Isum / (32768.0 * DOWNSAMPLING);
+            rx_state.qSamples[idx][rx_state.iqIndex[idx]] = Qsum / (32768.0 * DOWNSAMPLING);
+            rx_state.iqIndex[idx]++;
         }
     }
 }
@@ -249,15 +253,19 @@ static void *decoder(void *arg) {
         if (rx_state.exit_flag)
             break;  /* Abort case, final sig */
 
-        /* Get the date at the beginning of the decoding process */
-        time_t rawtime;
-        time ( &rawtime );
-        struct tm *gtm = gmtime(&rawtime);
-        snprintf(dec_options.date, sizeof(dec_options.date), "%02d%02d%02d", gtm->tm_year - 100, gtm->tm_mon + 1, gtm->tm_mday);
-        snprintf(dec_options.uttime, sizeof(dec_options.uttime), "%02d%02d", gtm->tm_hour, gtm->tm_min);
-
-        /* Select the previous transmission */
+        /* Select the previous transmission / other buffer */
         uint32_t prevBuffer = (rx_state.bufferIndex + 1) % 2;
+
+        if (rx_state.iqIndex[prevBuffer] < ( (SIGNAL_LENGHT - 3) * SIGNAL_SAMPLE_RATE ) )
+            continue;  /* Partial buffer during the first RX, skip it! */
+
+        /* Get the date at the beginning last recording session
+           with 1 second margin added, just to be sure to be on this even minute
+        */
+        time_t unixtime;
+        time ( &unixtime );
+        unixtime = unixtime - 120 + 1;
+        rx_state.gtm = gmtime( &unixtime );
 
         /* Search & decode the signal */
         wspr_decode(rx_state.iSamples[prevBuffer],
@@ -277,7 +285,8 @@ static void *decoder(void *arg) {
 /* Double buffer management */
 void initSampleStorage() {
     rx_state.bufferIndex = 0;
-    rx_state.iqIndex     = 0;
+    rx_state.iqIndex[0]  = 0;
+    rx_state.iqIndex[1]  = 0;
 }
 
 
@@ -311,18 +320,42 @@ void postSpots(uint32_t n_results) {
     CURLcode res;
     char url[256];
 
-    // PLANNED -- no spot case
-    // if (n_results == 0) {
-    //     return;
-    // }
+    /* No spot to report, stat option used */
+    // "Table 'wsprnet_db.activity' doesn't exist" reported on web site...
+    // Anyone has doc about this?
+    if (n_results == 0) {
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-wsprd_v0.4.1&mode=2",
+                 dec_options.rcall,
+                 dec_options.rloc,
+                 rx_options.realfreq / 1e6,
+                 0.0f,
+                 rx_options.realfreq / 1e6,
+                 0);
+
+        curl = curl_easy_init();
+        if (curl) {
+            curl_easy_setopt(curl, CURLOPT_URL, url);
+            curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
+            res = curl_easy_perform(curl);
+
+            if (res != CURLE_OK)
+                fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+
+            curl_easy_cleanup(curl);
+        }
+        return;
+    }
 
     for (uint32_t i = 0; i < n_results; i++) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%s&time=%s&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=0.2r_wsprd&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-wsprd_v0.4.1&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  dec_results[i].freq,
-                 dec_options.date,
-                 dec_options.uttime,
+                 rx_state.gtm->tm_year - 100,
+                 rx_state.gtm->tm_mon + 1,
+                 rx_state.gtm->tm_mday,
+                 rx_state.gtm->tm_hour,
+                 rx_state.gtm->tm_min,
                  dec_results[i].snr,
                  dec_results[i].dt,
                  dec_results[i].freq,
@@ -346,29 +379,25 @@ void postSpots(uint32_t n_results) {
 
 
 void printSpots(uint32_t n_results) {
-    time_t rawtime;
-    time(&rawtime);
-    struct tm *gtm = gmtime(&rawtime);
-
     if (n_results == 0) {
         printf("No spot %04d-%02d-%02d %02d:%02dz\n",
-               gtm->tm_year + 1900,
-               gtm->tm_mon + 1,
-               gtm->tm_mday,
-               gtm->tm_hour,
-               gtm->tm_min);
+               rx_state.gtm->tm_year + 1900,
+               rx_state.gtm->tm_mon + 1,
+               rx_state.gtm->tm_mday,
+               rx_state.gtm->tm_hour,
+               rx_state.gtm->tm_min);
 
         return;
     }
 
     for (uint32_t i = 0; i < n_results; i++) {
         printf("Spot :  %04d-%02d-%02d %02d:%02d:%02d %6.2f %6.2f %10.6f %2d %7s %6s %2s\n",
-               gtm->tm_year + 1900,
-               gtm->tm_mon + 1,
-               gtm->tm_mday,
-               gtm->tm_hour,
-               gtm->tm_min,
-               gtm->tm_sec,
+               rx_state.gtm->tm_year + 1900,
+               rx_state.gtm->tm_mon + 1,
+               rx_state.gtm->tm_mday,
+               rx_state.gtm->tm_hour,
+               rx_state.gtm->tm_min,
+               rx_state.gtm->tm_sec,
                dec_results[i].snr,
                dec_results[i].dt,
                dec_results[i].freq,
@@ -932,13 +961,13 @@ int main(int argc, char **argv) {
     struct tm *gtm = gmtime(&rawtime);
 
     /* Print used parameter */
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.4.0\n",
+    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.4.1\n",
            gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
-    printf("  Callsign     : %s\n", dec_options.rcall);
-    printf("  Locator      : %s\n", dec_options.rloc);
+    printf("  Callsign     : %s\n",    dec_options.rcall);
+    printf("  Locator      : %s\n",    dec_options.rloc);
     printf("  Dial freq.   : %d Hz\n", rx_options.dialfreq);
     printf("  Real freq.   : %d Hz\n", rx_options.realfreq);
-    printf("  PPM factor   : %d\n", rx_options.ppm);
+    printf("  PPM factor   : %d\n",    rx_options.ppm);
     if (rx_options.autogain)
         printf("  Auto gain    : enable\n");
     else
@@ -979,7 +1008,7 @@ int main(int argc, char **argv) {
 
         /* Switch to the other buffer and trigger the decoder */
         rx_state.bufferIndex = (rx_state.bufferIndex + 1) % 2;
-        rx_state.iqIndex = 0;
+        rx_state.iqIndex[rx_state.bufferIndex] = 0;
         safe_cond_signal(&decState.ready_cond, &decState.ready_mutex);
 
         nLoop++;
