@@ -687,7 +687,7 @@ int main(int argc, char **argv) {
     if (argc <= 1)
         usage();
 
-    while ((opt = getopt(argc, argv, "f:c:l:g:ao:p:u:dn:i:tw:r:HQS")) != -1) {
+    while ((opt = getopt(argc, argv, "f:c:l:g:ao:p:u:d:n:i:tw:r:HQS")) != -1) {
         switch (opt) {
             case 'f':  // Frequency
                 if (!strcasecmp(optarg, "LF")) {
@@ -755,7 +755,7 @@ int main(int argc, char **argv) {
                 rx_options.upconverter = (uint32_t)atofs(optarg);
                 break;
             case 'd':  // Direct Sampling
-                rx_options.directsampling = 1;
+                rx_options.directsampling = (uint32_t)atofs(optarg);
                 break;
             case 'n':  // Stop after n iterations
                 rx_options.maxloop = (uint32_t)atofs(optarg);
@@ -864,7 +864,7 @@ int main(int argc, char **argv) {
     }
 
     if (rx_options.directsampling) {
-        rtl_result = rtlsdr_set_direct_sampling(rtl_device, 1);
+        rtl_result = rtlsdr_set_direct_sampling(rtl_device, rx_options.directsampling);
         if (rtl_result < 0) {
             fprintf(stderr, "ERROR: Failed to set direct sampling\n");
             rtlsdr_close(rtl_device);
