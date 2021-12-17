@@ -324,7 +324,7 @@ void postSpots(uint32_t n_results) {
     // "Table 'wsprnet_db.activity' doesn't exist" reported on web site...
     // Anyone has doc about this?
     if (n_results == 0) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-wsprd_v0.4.1&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-wsprd_v0.4.2&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  rx_options.realfreq / 1e6,
@@ -347,7 +347,7 @@ void postSpots(uint32_t n_results) {
     }
 
     for (uint32_t i = 0; i < n_results; i++) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-wsprd_v0.4.1&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-wsprd_v0.4.2&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  dec_results[i].freq,
@@ -961,7 +961,7 @@ int main(int argc, char **argv) {
     struct tm *gtm = gmtime(&rawtime);
 
     /* Print used parameter */
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.4.1\n",
+    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.4.2\n",
            gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
     printf("  Callsign     : %s\n",    dec_options.rcall);
     printf("  Locator      : %s\n",    dec_options.rloc);
