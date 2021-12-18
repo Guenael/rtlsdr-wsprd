@@ -54,9 +54,9 @@ This application written in C does:
 ## Installation
 
   1. Install a Linux compatible distro on your device.
-     
+
      For Raspberry Pi, you can download official images [here](https://www.raspberrypi.com/software/operating-systems/).
-  
+
   2. It's a good practice to update your OS. With Pi OS, run this command as usual:
      ```bash
      sudo apt-get update && sudo apt-get upgrade
@@ -66,7 +66,7 @@ This application written in C does:
      ```bash
      sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev libcurl4-gnutls-dev ntp git
      ```
-  
+
   4. Install `rtl-sdr` library manually. **Do not use the `librtlsdr-dev` package on Raspberry PiOS**. There is a know bug with this lib and rtlsdr_wsprd will not be able to get enough samples (don't decode anything & 100% CPU pattern).
      ```bash
      git clone https://github.com/osmocom/rtl-sdr
@@ -79,23 +79,32 @@ This application written in C does:
      cd ../..
      ```
   Note: You may have to re-plug you dongle if it was already connected, or play with `udev` if not automatically detected.
-  
+
   5. Clone this repository:
      ```bash
      git clone https://github.com/Guenael/rtlsdr-wsprd
      ```
-  
+
   6. Build the application:
      ```bash
      cd rtlsdr-wsprd
      make
      sudo make install
      ```
-  
+
   7. Finally, start the application with the right parameters/options for you (frequency, callsign, locator etc... Fake example below):
      ```bash
      rtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29
      ```
+
+## Container Image
+
+As an alterative to the above steps, a pre-built container image containing rtlsdr-wsprd is available for use with [Docker](https://www.docker.com/) or [Podman](https://podman.io/).
+
+Start the container with the right parameters/options for you (frequency, callsign, locator etc... Fake example below):
+```bash
+docker run --rm -it --device=/dev/bus/usb ghcr.io/Guenael/rtlsdr-wsprd:latest -f 2m -c A1XYZ -l AB12cd -g 29
+```
 
 ## Tips (for your Raspberry Pi and SDR dongles)
 
