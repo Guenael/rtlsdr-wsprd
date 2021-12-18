@@ -35,28 +35,26 @@
 
 /* Option & config of decoder (Shared with the wsprd code) */
 struct decoder_options {
-    uint32_t freq;          // Dial frequency
-    char rcall[13];         // Callsign of the RX station
-    char rloc[7];           // Locator of the RX station
-    char date[7];           // Date & time of the processes samples
-    char uttime[5];         //  ''
-    uint32_t quickmode;     // Decoder option & tweak
-    uint32_t usehashtable;  //  ''
-    uint32_t npasses;       //  ''
-    uint32_t subtraction;   //  ''
+    uint32_t  freq;          // Dial frequency
+    char      rcall[13];     // Callsign of the RX station
+    char      rloc[7];       // Locator of the RX station
+    uint32_t  quickmode;     // Decoder option & tweak
+    uint32_t  usehashtable;  //  ''
+    uint32_t  npasses;       //  ''
+    uint32_t  subtraction;   //  ''
 };
 
 struct decoder_results {
-    double freq;
-    float sync;
-    float snr;
-    float dt;
-    float drift;
-    int32_t jitter;
-    char message[23];
-    char call[13];
-    char loc[7];
-    char pwr[3];
+    double   freq;
+    float    sync;
+    float    snr;
+    float    dt;
+    float    drift;
+    int32_t  jitter;
+    char     message[23];
+    char     call[13];
+    char     loc[7];
+    char     pwr[3];
     uint32_t cycles;
 };
 
