@@ -76,7 +76,7 @@ struct receiver_state {
     /* Buffer selected (0 or 1) */
     uint32_t bufferIndex;
 
-    /* Time at the begining of the frame to decode */
+    /* Time at the beginning of the frame to decode */
     struct tm *gtm;
 };
 
