@@ -101,7 +101,17 @@ This application written in C does:
 
 As an alterative to the above steps, a pre-built container image containing rtlsdr-wsprd is available for use with [Docker](https://www.docker.com/) or [Podman](https://podman.io/).
 
-Start the container with the right parameters/options for you (frequency, callsign, locator etc... Fake example below):
+The RTL DVB kernel modules must first be blacklisted on the host running the container. RTL-SDR itself is not required on the host running the container. This can be permanently accomplished using the following commands:
+
+```bash
+echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-dvb_usb_rtl28xxu.conf
+sudo modprobe -r dvb_usb_rtl28xxu
+```
+
+If the `modprobe -r` command errors, a reboot is recommended to unload the module.
+
+You can then start the container with the right parameters/options for you (frequency, callsign, locator etc... Fake example below):
+
 ```bash
 docker run --rm -it --device=/dev/bus/usb ghcr.io/Guenael/rtlsdr-wsprd:latest -f 2m -c A1XYZ -l AB12cd -g 29
 ```
