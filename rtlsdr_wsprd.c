@@ -681,7 +681,7 @@ void usage(void) {
             "\t-o frequency offset (default: 0)\n"
             "\t-p crystal correction factor (ppm) (default: 0)\n"
             "\t-u upconverter (default: 0, example: 125M)\n"
-            "\t-d direct dampling [0,1,2] (default: 0, 1 for I input, 2 for Q input)\n"
+            "\t-d direct sampling [0,1,2] (default: 0, 1 for I input, 2 for Q input)\n"
             "\t-n max iterations (default: 0 = infinite loop)\n"
             "\t-i device index (in case of multiple receivers, default: 0)\n"
             "Decoder extra options:\n"
