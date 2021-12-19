@@ -113,7 +113,7 @@ If the `modprobe -r` command errors, a reboot is recommended to unload the modul
 You can then start the container with the right parameters/options for you (frequency, callsign, locator etc... Fake example below):
 
 ```bash
-docker run --rm -it --device=/dev/bus/usb ghcr.io/Guenael/rtlsdr-wsprd:latest -f 2m -c A1XYZ -l AB12cd -g 29
+docker run --rm -it --device=/dev/bus/usb ghcr.io/guenael/rtlsdr-wsprd:latest -f 2m -c A1XYZ -l AB12cd -g 29
 ```
 
 ## Tips (for your Raspberry Pi and SDR dongles)
