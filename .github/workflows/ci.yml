@@ -56,7 +56,7 @@ jobs:
       run: |
         pip install codespell
         echo "===== CODESPELL ====="
-        codespell -L 'rcall' *.c *.h wsprd/*.c wsprd/*.h
+        codespell -L 'rcall' *.md *.c *.h wsprd/*.c wsprd/*.h .github/workflows/ci.yml
 
     - name: Unit-Test
       run: |
