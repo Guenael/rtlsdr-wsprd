@@ -52,7 +52,7 @@ jobs:
         echo "===== CPPLINT ====="
         cpplint --linelength=1000 --extensions=c --headers=h --recursive * || true
 
-    - name: Codespell check (beacause of my spelling...)
+    - name: Codespell check (because of my spelling...)
       run: |
         pip install codespell
         echo "===== CODESPELL ====="

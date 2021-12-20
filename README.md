@@ -99,7 +99,7 @@ This application written in C does:
 
 ## Container Image
 
-As an alterative to the above steps, a pre-built container image containing rtlsdr-wsprd is available for use with [Docker](https://www.docker.com/) or [Podman](https://podman.io/).
+As an alternative to the above steps, a pre-built container image containing rtlsdr-wsprd is available for use with [Docker](https://www.docker.com/) or [Podman](https://podman.io/).
 
 The RTL DVB kernel modules must first be blacklisted on the host running the container. RTL-SDR itself is not required on the host running the container. This can be permanently accomplished using the following commands:
 
