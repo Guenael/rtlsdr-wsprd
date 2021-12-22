@@ -612,10 +612,10 @@ int32_t decoderSelfTest() {
     unsigned char symbols[162];
     char message[] = "K1JT FN20QI 20";
     char hashtab[32768*13] = {0};
-    //char loctab[32768*5]   = {0};  // EVAL: code update from wsprd
+    char loctab[32768*5]   = {0};  // EVAL: code update from wsprd
 
     // Compute sympbols from the message
-    get_wspr_channel_symbols(message, hashtab,  symbols);
+    get_wspr_channel_symbols(message, hashtab, loctab, symbols);
 
     float  f0  = 50.0;
     float  t0  = 2.0;  // Caution!! Possible buffer overflow with the index calculation (no user input here!)

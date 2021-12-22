@@ -44,22 +44,26 @@
 #include "./wsprsim_utils.h"
 #include "./metric_tables.h"
 
-#define DF 375.0 / 256.0
-#define DT 1.0 / 375.0
-#define TWOPIDT 2.0 * M_PI * DT
-#define NIQ 45000
-#define NBITS 81
-#define NSYM 162
-#define NSPERSYM 256
-#define NFILT 256
-#define NSIG NSYM * NSPERSYM
+#define SIGNAL_LENGHT       120
+#define SIGNAL_SAMPLE_RATE  375
+#define SIGNAL_SAMPLES      SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE
+#define NBITS               81
+#define NSYM                162
+#define NSPERSYM            256
+#define DF                  375.0 / 256.0
+#define DT                  1.0 / 375.0
+#define DF05                DF * 0.5
+#define DF15                DF * 1.5
+#define TWOPIDT             2.0 * M_PI * DT
+
+#define NFILT               256
+#define NSIG                NSYM * NSPERSYM
+
 
 /* Possible PATIENCE options: FFTW_ESTIMATE, FFTW_ESTIMATE_PATIENT, FFTW_MEASURE, FFTW_PATIENT, FFTW_EXHAUSTIVE */
 #define PATIENCE FFTW_ESTIMATE
 
-fftwf_plan PLAN1,
-    PLAN2,
-    PLAN3;
+fftwf_plan PLAN;
 int32_t printdata = 0;
 
 uint8_t pr3vector[NSYM] = {
@@ -73,82 +77,83 @@ uint8_t pr3vector[NSYM] = {
     0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0,
     0, 0};
 
-/***********************************************************************
- * mode = 0: no frequency or drift search. find best time lag.          *
- *        1: no time lag or drift search. find best frequency.          *
- *        2: no frequency or time lag search. calculate soft-decision   *
- *           symbols using passed frequency and shift.                  *
- ************************************************************************/
+
+//***************************************************************************
 void sync_and_demodulate(float *id, float *qd, long np,
-                         uint8_t *symbols, float *freq1, float fstep,
-                         int32_t *shift1, int32_t lagmin, int32_t lagmax, int32_t lagstep,
-                         float *drift1, int32_t symfac, float *sync, int32_t mode) {
-    float fbest = 0.0;
-    float f0 = 0.0, fp, ss;
-    int32_t lag;
+                         unsigned char *symbols, float *f1, int ifmin, int ifmax, float fstep,
+                         int *shift1, int lagmin, int lagmax, int lagstep,
+                         float *drift1, int symfac, float *sync, int mode) {
+    /***********************************************************************
+     * mode = 0: no frequency or drift search. find best time lag.          *
+     *        1: no time lag or drift search. find best frequency.          *
+     *        2: no frequency or time lag search. calculate soft-decision   *
+     *           symbols using passed frequency and shift.                  *
+     ************************************************************************/
+
     static float fplast = -10000.0;
-    float i0[NSYM], q0[NSYM],
-          i1[NSYM], q1[NSYM],
-          i2[NSYM], q2[NSYM],
+    float f0 = 0.0, fp, ss, 
+          fbest = 0.0, 
+          fsum = 0.0, 
+          f2sum = 0.0, 
+          fsymb[NSYM];
+    int best_shift = 0;
+    float i0[NSYM], q0[NSYM], 
+          i1[NSYM], q1[NSYM], 
+          i2[NSYM], q2[NSYM], 
           i3[NSYM], q3[NSYM];
     float p0, p1, p2, p3, cmet, totp, syncmax, fac;
-    float c0[NSPERSYM], s0[NSPERSYM],
-          c1[NSPERSYM], s1[NSPERSYM],
-          c2[NSPERSYM], s2[NSPERSYM],
+    float c0[NSPERSYM], s0[NSPERSYM], 
+          c1[NSPERSYM], s1[NSPERSYM], 
+          c2[NSPERSYM], s2[NSPERSYM], 
           c3[NSPERSYM], s3[NSPERSYM];
-    float dphi0, cdphi0, sdphi0,
-          dphi1, cdphi1, sdphi1,
+    float dphi0, cdphi0, sdphi0, 
+          dphi1, cdphi1, sdphi1, 
           dphi2, cdphi2, sdphi2,
           dphi3, cdphi3, sdphi3;
-    float fsum = 0.0, f2sum = 0.0, fsymb[NSYM];
-    int32_t best_shift = 0;
-    int32_t ifmin = 0, ifmax = 0;
 
     syncmax = -1e30;
     if (mode == 0) {
         ifmin = 0;
         ifmax = 0;
         fstep = 0.0;
-        f0 = *freq1;
+        f0 = *f1;
     }
     if (mode == 1) {
         lagmin = *shift1;
         lagmax = *shift1;
-        ifmin = -5;
-        ifmax = 5;
-        f0 = *freq1;
+        f0 = *f1;
     }
     if (mode == 2) {
         lagmin = *shift1;
         lagmax = *shift1;
         ifmin = 0;
         ifmax = 0;
-        f0 = *freq1;
+        f0 = *f1;
     }
 
-    for (int32_t ifreq = ifmin; ifreq <= ifmax; ifreq++) {
-        f0 = *freq1 + ifreq * fstep;
-        for (lag = lagmin; lag <= lagmax; lag = lag + lagstep) {
+    for (int ifreq = ifmin; ifreq <= ifmax; ifreq++) {
+        f0 = *f1 + ifreq * fstep;
+        for (int lag = lagmin; lag <= lagmax; lag = lag + lagstep) {
             ss = 0.0;
             totp = 0.0;
-            for (int32_t i = 0; i < NSYM; i++) {
-                fp = f0 + ((float)*drift1 / 2.0) * ((float)i - (float)NBITS) / (float)NBITS;
+            for (int i = 0; i < NSYM; i++) {
+                fp = f0 + (*drift1 / 2.0) * ((float)i - (float)NBITS) / (float)NBITS;
                 if (i == 0 || (fp != fplast)) {  // only calculate sin/cos if necessary
-                    dphi0 = TWOPIDT * (fp - 1.5 * DF);
-                    cdphi0 = cosf(dphi0);
-                    sdphi0 = sinf(dphi0);
+                    dphi0 = TWOPIDT * (fp - DF15);
+                    cdphi0 = cos(dphi0);
+                    sdphi0 = sin(dphi0);
 
-                    dphi1 = TWOPIDT * (fp - 0.5 * DF);
-                    cdphi1 = cosf(dphi1);
-                    sdphi1 = sinf(dphi1);
+                    dphi1 = TWOPIDT * (fp - DF05);
+                    cdphi1 = cos(dphi1);
+                    sdphi1 = sin(dphi1);
 
-                    dphi2 = TWOPIDT * (fp + 0.5 * DF);
-                    cdphi2 = cosf(dphi2);
-                    sdphi2 = sinf(dphi2);
+                    dphi2 = TWOPIDT * (fp + DF05);
+                    cdphi2 = cos(dphi2);
+                    sdphi2 = sin(dphi2);
 
-                    dphi3 = TWOPIDT * (fp + 1.5 * DF);
-                    cdphi3 = cosf(dphi3);
-                    sdphi3 = sinf(dphi3);
+                    dphi3 = TWOPIDT * (fp + DF15);
+                    cdphi3 = cos(dphi3);
+                    sdphi3 = sin(dphi3);
 
                     c0[0] = 1;
                     s0[0] = 0;
@@ -159,7 +164,7 @@ void sync_and_demodulate(float *id, float *qd, long np,
                     c3[0] = 1;
                     s3[0] = 0;
 
-                    for (int32_t j = 1; j < NSPERSYM; j++) {
+                    for (int j = 1; j < NSPERSYM; j++) {
                         c0[j] = c0[j - 1] * cdphi0 - s0[j - 1] * sdphi0;
                         s0[j] = c0[j - 1] * sdphi0 + s0[j - 1] * cdphi0;
                         c1[j] = c1[j - 1] * cdphi1 - s1[j - 1] * sdphi1;
@@ -181,9 +186,9 @@ void sync_and_demodulate(float *id, float *qd, long np,
                 i3[i] = 0.0;
                 q3[i] = 0.0;
 
-                for (int32_t j = 0; j < NSPERSYM; j++) {
-                    int32_t k = lag + i * NSPERSYM + j;
-                    if ((k > 0) & (k < np)) {
+                for (int j = 0; j < NSPERSYM; j++) {
+                    int k = lag + i * NSPERSYM + j;
+                    if ((k > 0) && (k < np)) {
                         i0[i] = i0[i] + id[k] * c0[j] + qd[k] * s0[j];
                         q0[i] = q0[i] - id[k] * s0[j] + qd[k] * c0[j];
                         i1[i] = i1[i] + id[k] * c1[j] + qd[k] * s1[j];
@@ -199,25 +204,25 @@ void sync_and_demodulate(float *id, float *qd, long np,
                 p2 = i2[i] * i2[i] + q2[i] * q2[i];
                 p3 = i3[i] * i3[i] + q3[i] * q3[i];
 
-                p0 = sqrtf(p0);
-                p1 = sqrtf(p1);
-                p2 = sqrtf(p2);
-                p3 = sqrtf(p3);
+                p0 = sqrt(p0);
+                p1 = sqrt(p1);
+                p2 = sqrt(p2);
+                p3 = sqrt(p3);
 
                 totp = totp + p0 + p1 + p2 + p3;
                 cmet = (p1 + p3) - (p0 + p2);
-                ss = ss + cmet * (2 * pr3vector[i] - 1);
+                ss = (pr3vector[i] == 1) ? ss + cmet : ss - cmet;
                 if (mode == 2) {  // Compute soft symbols
-                    if (pr3vector[i]) {
+                    if (pr3vector[i] == 1) {
                         fsymb[i] = p3 - p1;
                     } else {
                         fsymb[i] = p2 - p0;
                     }
                 }
             }
-
-            if (ss / totp > syncmax) {  // Save best parameters
-                syncmax = ss / totp;
+            ss = ss / totp;
+            if (ss > syncmax) {  // Save best parameters
+                syncmax = ss;
                 best_shift = lag;
                 fbest = f0;
             }
@@ -227,18 +232,18 @@ void sync_and_demodulate(float *id, float *qd, long np,
     if (mode <= 1) {  // Send best params back to caller
         *sync = syncmax;
         *shift1 = best_shift;
-        *freq1 = fbest;
+        *f1 = fbest;
         return;
     }
 
     if (mode == 2) {
         *sync = syncmax;
-        for (int32_t i = 0; i < NSYM; i++) {  // Normalize the soft symbols
-            fsum = fsum + fsymb[i] / (float)NSYM;
-            f2sum = f2sum + fsymb[i] * fsymb[i] / (float)NSYM;
+        for (int i = 0; i < NSYM; i++) {  // Normalize the soft symbols
+            fsum = fsum + fsymb[i] / NSYM;
+            f2sum = f2sum + fsymb[i] * fsymb[i] / NSYM;
         }
-        fac = sqrtf(f2sum - fsum * fsum);
-        for (int32_t i = 0; i < NSYM; i++) {
+        fac = sqrt(f2sum - fsum * fsum);
+        for (int i = 0; i < NSYM; i++) {
             fsymb[i] = symfac * fsymb[i] / fac;
             if (fsymb[i] > 127) fsymb[i] = 127.0;
             if (fsymb[i] < -128) fsymb[i] = -128.0;
@@ -249,35 +254,196 @@ void sync_and_demodulate(float *id, float *qd, long np,
     return;
 }
 
+void noncoherent_sequence_detection(float *id, float *qd, long np,
+                                    unsigned char *symbols, float *f1, int *shift1,
+                                    float *drift1, int symfac, int *nblocksize, int *bitmetric) {
+    /************************************************************************
+     *  Noncoherent sequence detection for wspr.                            *
+     *  Allowed block lengths are nblock=1,2,3,6, or 9 symbols.             *
+     *  Longer block lengths require longer channel coherence time.         *
+     *  The whole block is estimated at once.                               *
+     *  nblock=1 corresponds to noncoherent detection of individual symbols *
+     *     like the original wsprd symbol demodulator.                      *
+     ************************************************************************/
+    static float fplast = -10000.0;
+
+    int i, j, k, lag, itone, ib, b, nblock, nseq, imask;
+    float xi[512], xq[512];
+    float is[4][NSYM], qs[4][NSYM], 
+          cf[4][NSYM], sf[4][NSYM], 
+          cm, sm, cmp, smp;
+    float p[512], fac, xm1, xm0;
+    float c0[NSPERSYM+1], s0[NSPERSYM+1], 
+          c1[NSPERSYM+1], s1[NSPERSYM+1], 
+          c2[NSPERSYM+1], s2[NSPERSYM+1], 
+          c3[NSPERSYM+1], s3[NSPERSYM+1];
+    float dphi0, cdphi0, sdphi0, 
+          dphi1, cdphi1, sdphi1, 
+          dphi2, cdphi2, sdphi2,
+          dphi3, cdphi3, sdphi3;
+    float f0, fp, fsum = 0.0, f2sum = 0.0, fsymb[NSYM];
+
+    f0 = *f1;
+    lag = *shift1;
+    nblock = *nblocksize;
+    nseq = 1 << nblock;
+    int bitbybit = *bitmetric;
+
+    for (i = 0; i < NSYM; i++) {
+        fp = f0 + (*drift1 / 2.0) * ((float)i - (float)NBITS) / (float)NBITS;
+        if (i == 0 || (fp != fplast)) {  // only calculate sin/cos if necessary
+            dphi0 = TWOPIDT * (fp - DF15);
+            cdphi0 = cos(dphi0);
+            sdphi0 = sin(dphi0);
+
+            dphi1 = TWOPIDT * (fp - DF05);
+            cdphi1 = cos(dphi1);
+            sdphi1 = sin(dphi1);
+
+            dphi2 = TWOPIDT * (fp + DF05);
+            cdphi2 = cos(dphi2);
+            sdphi2 = sin(dphi2);
+
+            dphi3 = TWOPIDT * (fp + DF15);
+            cdphi3 = cos(dphi3);
+            sdphi3 = sin(dphi3);
+
+            c0[0] = 1;
+            s0[0] = 0;
+            c1[0] = 1;
+            s1[0] = 0;
+            c2[0] = 1;
+            s2[0] = 0;
+            c3[0] = 1;
+            s3[0] = 0;
+
+            for (j = 1; j < (NSPERSYM+1); j++) {
+                c0[j] = c0[j - 1] * cdphi0 - s0[j - 1] * sdphi0;
+                s0[j] = c0[j - 1] * sdphi0 + s0[j - 1] * cdphi0;
+                c1[j] = c1[j - 1] * cdphi1 - s1[j - 1] * sdphi1;
+                s1[j] = c1[j - 1] * sdphi1 + s1[j - 1] * cdphi1;
+                c2[j] = c2[j - 1] * cdphi2 - s2[j - 1] * sdphi2;
+                s2[j] = c2[j - 1] * sdphi2 + s2[j - 1] * cdphi2;
+                c3[j] = c3[j - 1] * cdphi3 - s3[j - 1] * sdphi3;
+                s3[j] = c3[j - 1] * sdphi3 + s3[j - 1] * cdphi3;
+            }
+
+            fplast = fp;
+        }
+
+        cf[0][i] = c0[NSPERSYM];
+        sf[0][i] = s0[NSPERSYM];
+        cf[1][i] = c1[NSPERSYM];
+        sf[1][i] = s1[NSPERSYM];
+        cf[2][i] = c2[NSPERSYM];
+        sf[2][i] = s2[NSPERSYM];
+        cf[3][i] = c3[NSPERSYM];
+        sf[3][i] = s3[NSPERSYM];
+
+        is[0][i] = 0.0;
+        qs[0][i] = 0.0;
+        is[1][i] = 0.0;
+        qs[1][i] = 0.0;
+        is[2][i] = 0.0;
+        qs[2][i] = 0.0;
+        is[3][i] = 0.0;
+        qs[3][i] = 0.0;
+
+        for (j = 0; j < NSPERSYM; j++) {
+            k = lag + i * NSPERSYM + j;
+            if ((k > 0) && (k < np)) {
+                is[0][i] = is[0][i] + id[k] * c0[j] + qd[k] * s0[j];
+                qs[0][i] = qs[0][i] - id[k] * s0[j] + qd[k] * c0[j];
+                is[1][i] = is[1][i] + id[k] * c1[j] + qd[k] * s1[j];
+                qs[1][i] = qs[1][i] - id[k] * s1[j] + qd[k] * c1[j];
+                is[2][i] = is[2][i] + id[k] * c2[j] + qd[k] * s2[j];
+                qs[2][i] = qs[2][i] - id[k] * s2[j] + qd[k] * c2[j];
+                is[3][i] = is[3][i] + id[k] * c3[j] + qd[k] * s3[j];
+                qs[3][i] = qs[3][i] - id[k] * s3[j] + qd[k] * c3[j];
+            }
+        }
+    }
+
+    for (i = 0; i < NSYM; i = i + nblock) {
+        for (j = 0; j < nseq; j++) {
+            xi[j] = 0.0;
+            xq[j] = 0.0;
+            cm = 1;
+            sm = 0;
+            for (ib = 0; ib < nblock; ib++) {
+                b = (j & (1 << (nblock - 1 - ib))) >> (nblock - 1 - ib);
+                itone = pr3vector[i + ib] + 2 * b;
+                xi[j] = xi[j] + is[itone][i + ib] * cm + qs[itone][i + ib] * sm;
+                xq[j] = xq[j] + qs[itone][i + ib] * cm - is[itone][i + ib] * sm;
+                cmp = cf[itone][i + ib] * cm - sf[itone][i + ib] * sm;
+                smp = sf[itone][i + ib] * cm + cf[itone][i + ib] * sm;
+                cm = cmp;
+                sm = smp;
+            }
+            p[j] = xi[j] * xi[j] + xq[j] * xq[j];
+            p[j] = sqrt(p[j]);
+        }
+        for (ib = 0; ib < nblock; ib++) {
+            imask = 1 << (nblock - 1 - ib);
+            xm1 = 0.0;
+            xm0 = 0.0;
+            for (j = 0; j < nseq; j++) {
+                if ((j & imask) != 0) {
+                    if (p[j] > xm1) xm1 = p[j];
+                }
+                if ((j & imask) == 0) {
+                    if (p[j] > xm0) xm0 = p[j];
+                }
+            }
+            fsymb[i + ib] = xm1 - xm0;
+            if (bitbybit == 1) {
+                fsymb[i + ib] = fsymb[i + ib] / (xm1 > xm0 ? xm1 : xm0);
+            }
+        }
+    }
+    for (i = 0; i < NSYM; i++) {  // Normalize the soft symbols
+        fsum = fsum + fsymb[i] / NSYM;
+        f2sum = f2sum + fsymb[i] * fsymb[i] / NSYM;
+    }
+    fac = sqrt(f2sum - fsum * fsum);
+    for (i = 0; i < NSYM; i++) {
+        fsymb[i] = symfac * fsymb[i] / fac;
+        if (fsymb[i] > 127) fsymb[i] = 127.0;
+        if (fsymb[i] < -128) fsymb[i] = -128.0;
+        symbols[i] = fsymb[i] + 128;
+    }
+    return;
+}
+
 /***************************************************************************
  symbol-by-symbol signal subtraction
  ****************************************************************************/
 void subtract_signal(float *id, float *qd, long np,
-                     float f0, int32_t shift0, float drift0, uint8_t *channel_symbols) {
-    float i0, q0;
+                     float f0, int shift0, float drift0, unsigned char *channel_symbols) {
+
     float c0[NSPERSYM], s0[NSPERSYM];
     float dphi, cdphi, sdphi;
 
-    for (int32_t i = 0; i < NSYM; i++) {
+    for (int i = 0; i < NSYM; i++) {
         float fp = f0 + ((float)drift0 / 2.0) * ((float)i - (float)NBITS) / (float)NBITS;
 
-        dphi = TWOPIDT * (fp + ((float)channel_symbols[i] - 1.5) * DF);
-        cdphi = cosf(dphi);
-        sdphi = sinf(dphi);
+        dphi  = TWOPIDT * (fp + ((float)channel_symbols[i] - 1.5) * DF);
+        cdphi = cos(dphi);
+        sdphi = sin(dphi);
 
         c0[0] = 1;
         s0[0] = 0;
 
-        for (int32_t j = 1; j < NSPERSYM; j++) {
+        for (int j = 1; j < NSPERSYM; j++) {
             c0[j] = c0[j - 1] * cdphi - s0[j - 1] * sdphi;
             s0[j] = c0[j - 1] * sdphi + s0[j - 1] * cdphi;
         }
 
-        i0 = 0.0;
-        q0 = 0.0;
+        float i0 = 0.0;
+        float q0 = 0.0;
 
-        for (int32_t j = 0; j < NSPERSYM; j++) {
-            int32_t k = shift0 + i * NSPERSYM + j;
+        for (int j = 0; j < NSPERSYM; j++) {
+            int k = shift0 + i * NSPERSYM + j;
             if ((k > 0) & (k < np)) {
                 i0 = i0 + id[k] * c0[j] + qd[k] * s0[j];
                 q0 = q0 - id[k] * s0[j] + qd[k] * c0[j];
@@ -285,11 +451,12 @@ void subtract_signal(float *id, float *qd, long np,
         }
 
         // subtract the signal here.
+
         i0 = i0 / (float)NSPERSYM;  // will be wrong for partial symbols at the edges...
         q0 = q0 / (float)NSPERSYM;
 
-        for (int32_t j = 0; j < NSPERSYM; j++) {
-            int32_t k = shift0 + i * NSPERSYM + j;
+        for (int j = 0; j < NSPERSYM; j++) {
+            int k = shift0 + i * NSPERSYM + j;
             if ((k > 0) & (k < np)) {
                 id[k] = id[k] - (i0 * c0[j] - q0 * s0[j]);
                 qd[k] = qd[k] - (q0 * c0[j] + i0 * s0[j]);
@@ -299,15 +466,24 @@ void subtract_signal(float *id, float *qd, long np,
     return;
 }
 
+
 /******************************************************************************
- Fully coherent signal subtraction
+  Subtract the coherent component of a signal
  *******************************************************************************/
-void subtract_signal2(float *id, float *qd, long np,
-                      float f0, int32_t shift0, float drift0, uint8_t *channel_symbols) {
-    float phi = 0, dphi, cs;
-    float refi[NIQ] = {0}, refq[NIQ] = {0},
-          ci[NIQ] = {0}, cq[NIQ] = {0},
-          cfi[NIQ] = {0}, cfq[NIQ] = {0};
+void subtract_signal2(float *id,
+                      float *qd,
+                      long np,
+                      float f0,
+                      int shift0,
+                      float drift0,
+                      unsigned char *channel_symbols) {
+
+    float phi = 0;
+    const int nfilt = 360;  // nfilt must be even number.
+
+    float refi[SIGNAL_SAMPLES] = {0}, refq[SIGNAL_SAMPLES] = {0},
+          ci[SIGNAL_SAMPLES]   = {0}, cq[SIGNAL_SAMPLES]   = {0},
+          cfi[SIGNAL_SAMPLES]  = {0}, cfq[SIGNAL_SAMPLES]  = {0};
 
     /******************************************************************************
      Measured signal:                    s(t)=a(t)*exp( j*theta(t) )
@@ -319,19 +495,34 @@ void subtract_signal2(float *id, float *qd, long np,
 
     // create reference wspr signal vector, centered on f0.
     //
-    for (int32_t i = 0; i < NSYM; i++) {
-        cs = (float)channel_symbols[i];
+    for (int i = 0; i < NSYM; i++) {
+        float cs = (float)channel_symbols[i];
 
-        dphi = TWOPIDT * (f0 +
-                          ((float)drift0 / 2.0) * ((float)i - (float)NSYM / 2.0) / ((float)NSYM / 2.0) +
-                          (cs - 1.5) * DF);
+        float dphi = TWOPIDT * (f0 + (drift0 / 2.0) * ((float)i - (float)NSYM / 2.0) / ((float)NSYM / 2.0) + (cs - 1.5) * DF);
 
-        for (int32_t j = 0; j < NSPERSYM; j++) {
-            int32_t ii = NSPERSYM * i + j;
-            refi[ii] = refi[ii] + cosf(phi);  // cannot precompute sin/cos because dphi is changing
-            refq[ii] = refq[ii] + sinf(phi);
+        for (int j = 0; j < NSPERSYM; j++) {
+            int ii = NSPERSYM * i + j;
+            refi[ii] = cos(phi);  // cannot precompute sin/cos because dphi is changing
+            refq[ii] = sin(phi);
             phi = phi + dphi;
         }
+    }
+
+    float w[nfilt], norm = 0, partialsum[nfilt];
+
+    // lowpass filter and remove startup transient
+    for (int i = 0; i < nfilt; i++) {
+        partialsum[i] = 0.0;
+    }
+    for (int i = 0; i < nfilt; i++) {
+        w[i] = sin(M_PI * (float)i / (float)(nfilt - 1));
+        norm = norm + w[i];
+    }
+    for (int i = 0; i < nfilt; i++) {
+        w[i] = w[i] / norm;
+    }
+    for (int i = 1; i < nfilt; i++) {
+        partialsum[i] = partialsum[i - 1] + w[i];
     }
 
     // s(t) * conjugate(r(t))
@@ -339,58 +530,63 @@ void subtract_signal2(float *id, float *qd, long np,
     // beginning of first symbol in received data is at shift0.
     // filter transient lasts nfilt samples
     // leave nfilt zeros as a pad at the beginning of the unfiltered reference signal
-    for (int32_t i = 0; i < NSYM * NSPERSYM; i++) {
-        int32_t k = shift0 + i;
-        if ((k > 0) & (k < np)) {
-            ci[i + NFILT] = id[k] * refi[i] + qd[k] * refq[i];
-            cq[i + NFILT] = qd[k] * refi[i] - id[k] * refq[i];
+    for (int i = 0; i < NSYM * NSPERSYM; i++) {
+        int k = shift0 + i;
+        if ((k > 0) && (k < np)) {
+            ci[i + nfilt] = id[k] * refi[i] + qd[k] * refq[i];
+            cq[i + nfilt] = qd[k] * refi[i] - id[k] * refq[i];
         }
     }
 
-    // quick and dirty filter - may want to do better
-    float w[NFILT] = {0}, norm = 0, partialsum[NFILT] = {0};
-    for (int32_t i = 0; i < NFILT; i++) {
-        w[i] = sinf(M_PI * (float)i / (float)(NFILT - 1));
-        norm = norm + w[i];
-    }
-    for (int32_t i = 0; i < NFILT; i++) {
-        w[i] = w[i] / norm;
-    }
-    for (int32_t i = 1; i < NFILT; i++) {
-        partialsum[i] = partialsum[i - 1] + w[i];
-    }
-
     // LPF
-    for (int32_t i = NFILT / 2; i < NIQ - NFILT / 2; i++) {
+    for (int i = nfilt / 2; i < SIGNAL_SAMPLES - nfilt / 2; i++) {
         cfi[i] = 0.0;
         cfq[i] = 0.0;
-        for (int32_t j = 0; j < NFILT; j++) {
-            cfi[i] = cfi[i] + w[j] * ci[i - NFILT / 2 + j];
-            cfq[i] = cfq[i] + w[j] * cq[i - NFILT / 2 + j];
+        for (int j = 0; j < nfilt; j++) {
+            cfi[i] = cfi[i] + w[j] * ci[i - nfilt / 2 + j];
+            cfq[i] = cfq[i] + w[j] * cq[i - nfilt / 2 + j];
         }
     }
 
     // subtract c(t)*r(t) here
-    // (ci+j*cq)(refi+j*refq)=(ci*refi-cq*refq)+j(ci*refq)+cq*refi)
-    // beginning of first symbol in reference signal is at i=NFILT
+    // (ci+j*cq)(refi+j*refq)=(ci*refi-cq*refq)+j(ci*refq+cq*refi)
+    // beginning of first symbol in reference signal is at i=nfilt
     // beginning of first symbol in received data is at shift0.
-    for (int32_t i = 0; i < NSIG; i++) {
-        if (i < NFILT / 2) {  // take care of the end effect (LPF step response) here
-            norm = partialsum[NFILT / 2 + i];
-        } else if (i > (NSIG - 1 - NFILT / 2)) {
-            norm = partialsum[NFILT / 2 + NSIG - 1 - i];
+    for (int i = 0; i < NSYM * NSPERSYM; i++) {
+        if (i < nfilt / 2) {  // take care of the end effect (LPF step response) here
+            norm = partialsum[nfilt / 2 + i];
+        } else if (i > (NSYM * NSPERSYM - 1 - nfilt / 2)) {
+            norm = partialsum[nfilt / 2 + NSYM * NSPERSYM - 1 - i];
         } else {
             norm = 1.0;
         }
-        int32_t k = shift0 + i;
-        int32_t j = i + NFILT;
-        if ((k > 0) & (k < np)) {
+        int k = shift0 + i;
+        int j = i + nfilt;
+        if ((k > 0) && (k < np)) {
             id[k] = id[k] - (cfi[j] * refi[i] - cfq[j] * refq[i]) / norm;
             qd[k] = qd[k] - (cfi[j] * refq[i] + cfq[j] * refi[i]) / norm;
         }
     }
     return;
 }
+
+
+unsigned int count_hard_errors(unsigned char *symbols, unsigned char *channel_symbols) {
+    int i, is;
+    unsigned char cw[162];
+    unsigned int nerrors;
+    for (i = 0; i < 162; i++) {
+        cw[i] = channel_symbols[i] >= 2 ? 1 : 0;
+    }
+    deinterleave(cw);
+    nerrors = 0;
+    for (i = 0; i < 162; i++) {
+        is = symbols[i] > 127 ? 1 : 0;
+        nerrors = nerrors + (is == cw[i] ? 0 : 1);
+    }
+    return nerrors;
+}
+
 
 int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
                     struct decoder_options options, struct decoder_results *decodes,
@@ -405,6 +601,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
     float sync0[200], sync1 = 0.0;
     float snr0[200];
     int32_t shift0[200], shift1 = 0;
+    int32_t ifmin, ifmax;
 
     char callsign[13] = {0};
     char call_loc_pow[23] = {0};
@@ -420,6 +617,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
 
     // Hash table
     char hashtab[32768 * 13] = {0};
+    char loctab[32768 * 5] = {0};
     int32_t nh;
 
     // Parameters used for performance-tuning:
@@ -441,7 +639,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
     // Setup metric table
     int32_t mettab[2][256];
     float bias = 0.42;
-    for (i = 0; i < 256; i++) {
+    for (int i = 0; i < 256; i++) {
         mettab[0][i] = round(10 * (metric_tables[2][i] - bias));
         mettab[1][i] = round(10 * (metric_tables[2][255 - i] - bias));
     }
@@ -459,11 +657,11 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
     int32_t nffts = 4 * floor(npoints / 512) - 1;
     fftin = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * 512);
     fftout = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * 512);
-    PLAN3 = fftwf_plan_dft_1d(512, fftin, fftout, FFTW_FORWARD, PATIENCE);
+    PLAN = fftwf_plan_dft_1d(512, fftin, fftout, FFTW_FORWARD, PATIENCE);
 
     float ps[512][nffts];
     float w[512];
-    for (i = 0; i < 512; i++) {
+    for (int i = 0; i < 512; i++) {
         w[i] = sinf(0.006147931 * i);
     }
 
@@ -479,23 +677,23 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
     }
 
     // Main loop starts here
-    for (int32_t ipass = 0; ipass < options.npasses; ipass++) {
+    for (int ipass = 0; ipass < options.npasses; ipass++) {
         if (ipass == 1 && uniques == 0)
             break;
         if (ipass == 1)  // otherwise we bog down on the second pass
             options.quickmode = 1;
 
         memset(ps, 0.0, sizeof(float) * 512 * nffts);
-        for (i = 0; i < nffts; i++) {
+        for (int i = 0; i < nffts; i++) {
             for (j = 0; j < 512; j++) {
                 k = i * 128 + j;
                 fftin[j][0] = idat[k] * w[j];
                 fftin[j][1] = qdat[k] * w[j];
             }
 
-            fftwf_execute(PLAN3);
+            fftwf_execute(PLAN);
 
-            for (j = 0; j < 512; j++) {
+            for (int j = 0; j < 512; j++) {
                 k = j + 256;
                 if (k > 511)
                     k = k - 512;
@@ -505,7 +703,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
 
         // Compute average spectrum
         float psavg[512] = {0};
-        for (i = 0; i < nffts; i++) {
+        for (int i = 0; i < nffts; i++) {
             for (j = 0; j < 512; j++) {
                 psavg[j] = psavg[j] + ps[j][i];
             }
@@ -514,7 +712,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
         // Smooth with 7-point window and limit spectrum to +/-150 Hz
         int32_t window[7] = {1, 1, 1, 1, 1, 1, 1};
         float smspec[411];
-        for (i = 0; i < 411; i++) {
+        for (int i = 0; i < 411; i++) {
             smspec[i] = 0.0;
             for (j = -3; j <= 3; j++) {
                 k = 256 - 205 + i + j;
@@ -524,7 +722,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
 
         // Sort spectrum values, then pick off noise level as a percentile
         float tmpsort[411];
-        for (j = 0; j < 411; j++) {
+        for (int j = 0; j < 411; j++) {
             tmpsort[j] = smspec[j];
         }
         qsort(tmpsort, 411, sizeof(float), floatcomp);
@@ -540,14 +738,14 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
         float min_snr = powf(10.0, -7.0 / 10.0);  // this is min snr in wspr bw
         float snr_scaling_factor = 26.3;
 
-        for (j = 0; j < 411; j++) {
+        for (int j = 0; j < 411; j++) {
             smspec[j] = smspec[j] / noise_level - 1.0;
             if (smspec[j] < min_snr) smspec[j] = 0.1;
             continue;
         }
 
         // Find all local maxima in smoothed spectrum.
-        for (i = 0; i < 200; i++) {
+        for (int i = 0; i < 200; i++) {
             freq0[i] = 0.0;
             snr0[i] = 0.0;
             drift0[i] = 0.0;
@@ -556,7 +754,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
         }
 
         int32_t npk = 0;
-        for (j = 1; j < 410; j++) {
+        for (int j = 1; j < 410; j++) {
             if ((smspec[j] > smspec[j - 1]) && (smspec[j] > smspec[j + 1]) && (npk < 200)) {
                 freq0[npk] = (j - 205) * (DF / 2.0);
                 snr0[npk] = 10.0 * log10f(smspec[j]) - snr_scaling_factor;
@@ -572,7 +770,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
 
         // Don't waste time on signals outside of the range [fmin,fmax].
         i = 0;
-        for (j = 0; j < npk; j++) {
+        for (int j = 0; j < npk; j++) {
             if (freq0[j] >= fmin && freq0[j] <= fmax) {
                 freq0[i] = freq0[j];
                 snr0[i] = snr0[j];
@@ -582,9 +780,8 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
         npk = i;
 
         // bubble sort on snr, bringing freq along for the ride
-        int32_t pass;
         float tmp;
-        for (pass = 1; pass <= npk - 1; pass++) {
+        for (int pass = 1; pass <= npk - 1; pass++) {
             for (k = 0; k < npk - pass; k++) {
                 if (snr0[k] < snr0[k + 1]) {
                     tmp = snr0[k];
@@ -610,31 +807,22 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
            span of 162 symbols, with deviation equal to 0 at the center of the
            signal vector.
          */
-
-        int32_t idrift, ifr, if0, ifd, k0;
-        int32_t kindex;
-        float smax, ss, pow, p0, p1, p2, p3;
-        for (j = 0; j < npk; j++) {  // For each candidate...
-            smax = -1e30;
-            if0 = freq0[j] / (DF / 2.0) + NSPERSYM;
-            for (ifr = if0 - 1; ifr <= if0 + 1; ifr++) {                      // Freq search
-                for (k0 = -10; k0 < 22; k0++) {                               // Time search
-                    for (idrift = -maxdrift; idrift <= maxdrift; idrift++) {  // Drift search
-                        ss = 0.0;
-                        pow = 0.0;
+        for (int j = 0; j < npk; j++) {  // For each candidate...
+            float smax = -1e30;
+            int if0 = freq0[j] / (DF / 2.0) + NSPERSYM;
+            for (int ifr = if0 - 1; ifr <= if0 + 1; ifr++) {                      // Freq search
+                for (int k0 = -10; k0 < 22; k0++) {                               // Time search
+                    for (int idrift = -maxdrift; idrift <= maxdrift; idrift++) {  // Drift search
+                        float ss = 0.0;
+                        float pow = 0.0;
                         for (k = 0; k < NSYM; k++) {  // Sum over symbols
-                            ifd = ifr + ((float)k - (float)NBITS) / (float)NBITS * ((float)idrift) / DF;
-                            kindex = k0 + 2 * k;
+                            int ifd = ifr + ((float)k - (float)NBITS) / (float)NBITS * ((float)idrift) / DF;
+                            int kindex = k0 + 2 * k;
                             if (kindex < nffts) {
-                                p0 = ps[ifd - 3][kindex];
-                                p1 = ps[ifd - 1][kindex];
-                                p2 = ps[ifd + 1][kindex];
-                                p3 = ps[ifd + 3][kindex];
-
-                                p0 = sqrtf(p0);
-                                p1 = sqrtf(p1);
-                                p2 = sqrtf(p2);
-                                p3 = sqrtf(p3);
+                                float p0 = sqrtf(ps[ifd - 3][kindex]);
+                                float p1 = sqrtf(ps[ifd - 1][kindex]);
+                                float p2 = sqrtf(ps[ifd + 1][kindex]);
+                                float p3 = sqrtf(ps[ifd + 3][kindex]);
 
                                 ss = ss + (2 * pr3vector[k] - 1) * ((p1 + p3) - (p0 + p2));
                                 pow = pow + p0 + p1 + p2 + p3;
@@ -670,7 +858,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
          could each work on one candidate at a time.
          */
 
-        for (j = 0; j < npk; j++) {
+        for (int j = 0; j < npk; j++) {
             memset(symbols, 0, sizeof(char) * NBITS * 2);
             memset(callsign, 0, sizeof(char) * 13);
             memset(call_loc_pow, 0, sizeof(char) * 23);
@@ -678,26 +866,31 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
             memset(loc, 0, sizeof(char) * 7);
             memset(pwr, 0, sizeof(char) * 3);
 
-            freq1 = freq0[j];
+            freq1  = freq0[j];
             drift1 = drift0[j];
             shift1 = shift0[j];
-            sync1 = sync0[j];
+            sync1  = sync0[j];
 
             // Fine search for best sync lag (mode 0)
             float fstep = 0.0;
             int32_t lagmin = shift1 - 144;
             int32_t lagmax = shift1 + 144;
             int32_t lagstep = 8;
+            ifmin = 0;
+            ifmax = 0;
 
             if (options.quickmode)
                 lagstep = 16;
 
-            sync_and_demodulate(idat, qdat, npoints, symbols, &freq1, fstep, &shift1,
+            sync_and_demodulate(idat, qdat, npoints, symbols, &freq1, ifmin, ifmax, fstep, &shift1,
                                 lagmin, lagmax, lagstep, &drift1, symfac, &sync1, 0);
 
             // Fine search for frequency peak (mode 1)
             fstep = 0.1;
-            sync_and_demodulate(idat, qdat, npoints, symbols, &freq1, fstep, &shift1,
+            ifmin = 0;
+            ifmin = -2;
+            ifmax = 2;
+            sync_and_demodulate(idat, qdat, npoints, symbols, &freq1, ifmin, ifmax, fstep, &shift1,
                                 lagmin, lagmax, lagstep, &drift1, symfac, &sync1, 1);
 
             if (sync1 > minsync1) {
@@ -717,7 +910,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
                 jiggered_shift = shift1 + ii;
 
                 // Use mode 2 to get soft-decision symbols
-                sync_and_demodulate(idat, qdat, npoints, symbols, &freq1, fstep,
+                sync_and_demodulate(idat, qdat, npoints, symbols, &freq1, ifmin, ifmax, fstep,
                                     &jiggered_shift, lagmin, lagmax, lagstep, &drift1, symfac,
                                     &sync1, 2);
                 sq = 0.0;
@@ -748,12 +941,12 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
                 // Unpack the decoded message, update the hashtable, apply
                 // sanity checks on grid and power, and return
                 // call_loc_pow string and also callsign (for de-duping).
-                int32_t noprint = unpk_(message, hashtab, call_loc_pow, call, loc, pwr, callsign);
-
+                int32_t noprint = unpk_(message, hashtab, loctab, call_loc_pow, call, loc, pwr, callsign);
                 if (options.subtraction && (ipass == 0) && !noprint) {
                     unsigned char channel_symbols[NSYM];
 
-                    if (get_wspr_channel_symbols(call_loc_pow, hashtab, channel_symbols)) {
+                    //if (get_wspr_channel_symbols(call_loc_pow, hashtab, channel_symbols)) {
+                    if (get_wspr_channel_symbols(call_loc_pow, hashtab, loctab, channel_symbols)) {
                         subtract_signal2(idat, qdat, npoints, freq1, shift1, drift1, channel_symbols);
                     } else {
                         break;
@@ -816,9 +1009,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
         fclose(fp_fftw_wisdom_file);
     }
 
-    fftwf_destroy_plan(PLAN1);
-    fftwf_destroy_plan(PLAN2);
-    fftwf_destroy_plan(PLAN3);
+    fftwf_destroy_plan(PLAN);
 
     if (options.usehashtable) {
         fhash = fopen("hashtable.txt", "w");

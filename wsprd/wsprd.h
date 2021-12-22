@@ -44,6 +44,14 @@ struct decoder_options {
     uint32_t  subtraction;   //  ''
 };
 
+struct cand {
+    float    freq;
+    float    snr;
+    int      shift;
+    float    drift;
+    float    sync;
+};
+
 struct decoder_results {
     double   freq;
     float    sync;
@@ -58,14 +66,44 @@ struct decoder_results {
     uint32_t cycles;
 };
 
+// struct result {
+//     char date[7];
+//     char time[5];
+//     float sync;
+//     float snr;
+//     float dt;
+//     double freq;
+//     char message[23];
+//     float drift;
+//     unsigned int cycles;
+//     int jitter;
+//     int blocksize;
+//     unsigned int metric;
+//     int nhardmin;
+//     int ipass;
+//     int decodetype;
+// };
+
 void sync_and_demodulate(float *id, float *qd, long np,
-                         uint8_t *symbols, float *freq1, float fstep,
-                         int32_t *shift1, int32_t lagmin, int32_t lagmax, int32_t lagstep,
-                         float *drift1, int32_t symfac, float *sync, int32_t mode);
+                         unsigned char *symbols, float *f1, int ifmin, int ifmax, float fstep,
+                         int *shift1, int lagmin, int lagmax, int lagstep,
+                         float *drift1, int symfac, float *sync, int mode);
+void noncoherent_sequence_detection(float *id, float *qd, long np,
+                                    unsigned char *symbols, float *f1, int *shift1,
+                                    float *drift1, int symfac, int *nblocksize, int *bitmetric);
 void subtract_signal(float *id, float *qd, long np,
-                     float f0, int32_t shift0, float drift0, uint8_t *channel_symbols);
+                     float f0, int shift0, float drift0, unsigned char *channel_symbols);
 void subtract_signal2(float *id, float *qd, long np,
-                      float f0, int32_t shift0, float drift0, uint8_t *channel_symbols);
+                      float f0, int shift0, float drift0, unsigned char *channel_symbols);
+unsigned int count_hard_errors(unsigned char *symbols, unsigned char *channel_symbols);
 int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
                     struct decoder_options options, struct decoder_results *decodes,
                     int32_t *n_results);
+
+
+
+
+
+
+
+
