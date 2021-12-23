@@ -42,6 +42,7 @@ double atofs(char *s);
 int32_t parse_u64(char *s, uint64_t *const value);
 int32_t readRawIQfile(float *iSamples, float *qSamples, char *filename);
 int32_t writeRawIQfile(float *iSamples, float *qSamples, char *filename);
+int32_t readC2file(float *iSamples, float *qSamples, char *filename);
 void decodeRecordedFile(char *filename);
 float whiteGaussianNoise(float factor);
 int32_t decoderSelfTest();

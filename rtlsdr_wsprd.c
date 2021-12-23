@@ -94,7 +94,7 @@ struct receiver_options {
     bool     selftest;
     bool     writefile;
     bool     readfile;
-    char     filename[33];
+    char     *filename;
 };
 
 
@@ -220,8 +220,8 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
         /* Save the result in the buffer */
         uint32_t idx = rx_state.bufferIndex;
         if (rx_state.iqIndex[idx] < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE)) {
-            rx_state.iSamples[idx][rx_state.iqIndex[idx]] = Isum / (32768.0 * DOWNSAMPLING);
-            rx_state.qSamples[idx][rx_state.iqIndex[idx]] = Qsum / (32768.0 * DOWNSAMPLING);
+            rx_state.iSamples[idx][rx_state.iqIndex[idx]] = Isum;
+            rx_state.qSamples[idx][rx_state.iqIndex[idx]] = Qsum;
             rx_state.iqIndex[idx]++;
         }
     }
@@ -258,6 +258,29 @@ static void *decoder(void *arg) {
 
         if (rx_state.iqIndex[prevBuffer] < ( (SIGNAL_LENGHT - 3) * SIGNAL_SAMPLE_RATE ) )
             continue;  /* Partial buffer during the first RX, skip it! */
+
+        /* Delete any previous samples tail */
+        for (int i = rx_state.iqIndex[prevBuffer]; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
+            rx_state.iSamples[prevBuffer][i] = 0.0;
+            rx_state.qSamples[prevBuffer][i] = 0.0;
+        }
+
+        /* Normalize the sample @-3dB */
+        float maxSig = 0.0f;
+        for (int i = 0; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
+            float absI = fabs(rx_state.iSamples[prevBuffer][i]);
+            float absQ = fabs(rx_state.qSamples[prevBuffer][i]);
+
+            if (absI > maxSig)
+                maxSig = absI;
+            if (absQ > maxSig)
+                maxSig = absQ;
+        }
+        maxSig = 0.5 / maxSig;
+        for (int i = 0; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
+            rx_state.iSamples[prevBuffer][i] *= maxSig;
+            rx_state.qSamples[prevBuffer][i] *= maxSig;
+        }
 
         /* Get the date at the beginning last recording session
            with 1 second margin added, just to be sure to be on this even minute
@@ -324,7 +347,7 @@ void postSpots(uint32_t n_results) {
     // "Table 'wsprnet_db.activity' doesn't exist" reported on web site...
     // Anyone has doc about this?
     if (n_results == 0) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-050&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-051&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  rx_options.realfreq / 1e6,
@@ -347,7 +370,7 @@ void postSpots(uint32_t n_results) {
     }
 
     for (uint32_t i = 0; i < n_results; i++) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-050&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-051&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  dec_results[i].freq,
@@ -552,13 +575,70 @@ int32_t writeRawIQfile(float *iSamples, float *qSamples, char *filename) {
 }
 
 
+int32_t readC2file(float *iSamples, float *qSamples, char *filename) {
+    float filebuffer[2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
+    FILE *fd = fopen(filename, "rb");
+    int32_t nread;
+    double frequency;
+    int    type;
+    char   name[15];
+
+    if (fd == NULL) {
+        fprintf(stderr, "Cannot open data file...\n");
+        return 0;
+    }
+
+    /* Get the size of the file */
+    fseek(fd, 0L, SEEK_END);
+    int32_t recsize = ftell(fd) / (2 * sizeof(float)) - 26;
+    fseek(fd, 0L, SEEK_SET);
+
+    /* Limit the file/buffer to the max samples */
+    if (recsize > SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) {
+        recsize = SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE;
+    }
+
+    /* Read the header */
+    nread = fread(name, sizeof(char), 14, fd);
+    nread = fread(&type, sizeof(int), 1, fd);
+    nread = fread(&frequency, sizeof(double), 1, fd);
+    dec_options.freq = frequency;
+
+    /* Read the IQ file */
+    nread = fread(filebuffer, sizeof(float), 2 * recsize, fd);
+    if (nread != 2 * recsize) {
+        fprintf(stderr, "Cannot read all the data! %d\n", nread);
+        fclose(fd);
+        return 0;
+    } else {
+        fclose(fd);
+    }
+
+    /* Convert the interleaved buffer into 2 buffers */
+    for (int32_t i = 0; i < recsize; i++) {
+        iSamples[i] =  filebuffer[2 * i];
+        qSamples[i] = -filebuffer[2 * i + 1];  // neg, convention used by wsprsim
+    }
+
+    return recsize;
+}
+
+
 void decodeRecordedFile(char *filename) {
     static float iSamples[SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE] = {0};
     static float qSamples[SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE] = {0};
     static uint32_t samples_len;
     int32_t n_results = 0;
 
-    samples_len = readRawIQfile(iSamples, qSamples, filename);
+    if (strcmp(&filename[strlen(filename)-3], ".iq") == 0) {
+        samples_len = readRawIQfile(iSamples, qSamples, filename);
+    } else if (strcmp(&filename[strlen(filename)-3], ".c2") == 0) {
+        samples_len = readC2file(iSamples, qSamples, filename);
+    } else {
+        fprintf(stderr, "Not a valid extension!! (only .iq & .c2 files)\n");
+        return;
+    }
+
     printf("Number of samples: %d\n", samples_len);
 
     if (samples_len) {
@@ -691,7 +771,7 @@ void usage(void) {
             "Debugging options:\n"
             "\t-t decoder self-test (generate a signal & decode), no parameter\n"
             "\t-w write received signal and exit [filename prefix]\n"
-            "\t-r read signal, decode and exit [filename]\n"
+            "\t-r read signal with .iq or .c2 format, decode and exit [filename]\n"
             "\t   (raw format: 375sps, float 32 bits, 2 channels)\n"
             "Example:\n"
             "\trtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29 -o -4200\n");
@@ -830,13 +910,13 @@ int main(int argc, char **argv) {
             case 't':  // Seft test (used in unit-test CI pipeline)
                 rx_options.selftest = true;
                 break;
-            case 'w':  // Read a signal and decode
+            case 'w':  // Write a signal and exit
                 rx_options.writefile = true;
-                snprintf(rx_options.filename, sizeof(rx_options.filename), "%.32s", optarg);
+                rx_options.filename = optarg;
                 break;
-            case 'r':  // Write a signal and exit
+            case 'r':  // Read a signal and decode
                 rx_options.readfile = true;
-                snprintf(rx_options.filename, sizeof(rx_options.filename), "%.32s", optarg);
+                rx_options.filename = optarg;
                 break;
             default:
                 usage();
@@ -986,7 +1066,7 @@ int main(int argc, char **argv) {
     struct tm *gtm = gmtime(&rawtime);
 
     /* Print used parameter */
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.5.0\n",
+    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.5.1\n",
            gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
     printf("  Callsign     : %s\n",    dec_options.rcall);
     printf("  Locator      : %s\n",    dec_options.rloc);
@@ -1053,7 +1133,6 @@ int main(int argc, char **argv) {
     /* Destroy the lock/cond/thread */
     pthread_cond_destroy(&decState.ready_cond);
     pthread_mutex_destroy(&decState.ready_mutex);
-    pthread_exit(NULL);
 
     printf("Bye!\n");
 
