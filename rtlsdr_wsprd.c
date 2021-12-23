@@ -220,8 +220,8 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
         /* Save the result in the buffer */
         uint32_t idx = rx_state.bufferIndex;
         if (rx_state.iqIndex[idx] < (SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE)) {
-            rx_state.iSamples[idx][rx_state.iqIndex[idx]] = Isum / (32768.0 * DOWNSAMPLING);
-            rx_state.qSamples[idx][rx_state.iqIndex[idx]] = Qsum / (32768.0 * DOWNSAMPLING);
+            rx_state.iSamples[idx][rx_state.iqIndex[idx]] = Isum;
+            rx_state.qSamples[idx][rx_state.iqIndex[idx]] = Qsum;
             rx_state.iqIndex[idx]++;
         }
     }
@@ -258,6 +258,29 @@ static void *decoder(void *arg) {
 
         if (rx_state.iqIndex[prevBuffer] < ( (SIGNAL_LENGHT - 3) * SIGNAL_SAMPLE_RATE ) )
             continue;  /* Partial buffer during the first RX, skip it! */
+
+        /* Delete any previous samples tail */
+        for (int i = rx_state.iqIndex[prevBuffer]; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
+            rx_state.iSamples[prevBuffer][i] = 0.0;
+            rx_state.qSamples[prevBuffer][i] = 0.0;
+        }
+
+        /* Normalize the sample @-3dB */
+        float maxSig = 0.0f;
+        for (int i = 0; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
+            float absI = fabs(rx_state.iSamples[prevBuffer][i]);
+            float absQ = fabs(rx_state.qSamples[prevBuffer][i]);
+
+            if (absI > maxSig)
+                maxSig = absI;
+            if (absQ > maxSig)
+                maxSig = absQ;
+        }
+        maxSig = 0.5 / maxSig;
+        for (int i = 0; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
+            rx_state.iSamples[prevBuffer][i] *= maxSig;
+            rx_state.qSamples[prevBuffer][i] *= maxSig;
+        }
 
         /* Get the date at the beginning last recording session
            with 1 second margin added, just to be sure to be on this even minute

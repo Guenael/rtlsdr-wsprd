@@ -573,12 +573,12 @@ int wspr_decode(float  *idat,
          * corresponding to -7-26.3=-33.3dB in 2500 Hz bandwidth.
          * The corresponding threshold is -42.3 dB in 2500 Hz bandwidth for WSPR-15. */
 
-        float min_snr = powf(10.0, -7.0 / 10.0);  // this is min snr in wspr bw
+        float min_snr = powf(10.0, -8.0 / 10.0);  // this is min snr in wspr bw
         float snr_scaling_factor = 26.3;
 
         for (int j = 0; j < 411; j++) {
             smspec[j] = smspec[j] / noise_level - 1.0;
-            if (smspec[j] < min_snr) smspec[j] = 0.1;
+            if (smspec[j] < min_snr) smspec[j] = 0.1 * min_snr;
             continue;
         }
 
