@@ -721,28 +721,53 @@ int main(int argc, char **argv) {
             case 'f':  // Frequency
                 if (!strcasecmp(optarg, "LF")) {
                     rx_options.dialfreq = 136000;
+                    // Implicit direct sampling for HF bands & lower
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "MF")) {
                     rx_options.dialfreq = 474200;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "160m")) {
                     rx_options.dialfreq = 1836600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "80m")) {
                     rx_options.dialfreq = 3592600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "60m")) {
                     rx_options.dialfreq = 5287200;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "40m")) {
                     rx_options.dialfreq = 7038600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "30m")) {
                     rx_options.dialfreq = 10138700;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "20m")) {
                     rx_options.dialfreq = 14095600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "17m")) {
                     rx_options.dialfreq = 18104600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "15m")) {
                     rx_options.dialfreq = 21094600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "12m")) {
                     rx_options.dialfreq = 24924600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "10m")) {
                     rx_options.dialfreq = 28124600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "6m")) {
                     rx_options.dialfreq = 50293000;
                 } else if (!strcasecmp(optarg, "4m")) {
