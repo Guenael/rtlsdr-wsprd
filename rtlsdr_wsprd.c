@@ -1133,7 +1133,6 @@ int main(int argc, char **argv) {
     /* Destroy the lock/cond/thread */
     pthread_cond_destroy(&decState.ready_cond);
     pthread_mutex_destroy(&decState.ready_mutex);
-    pthread_exit(NULL);
 
     printf("Bye!\n");
 
