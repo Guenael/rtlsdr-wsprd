@@ -784,6 +784,10 @@ int wspr_decode(float  *idat,
                     }
                 }
 
+                // Avoid this incorrect pattern
+                if (!strcmp(loc, "A000AA"))
+                    break;
+
                 // Remove dupes (same callsign and freq within 3 Hz)
                 int32_t dupe = 0;
                 for (i = 0; i < uniques; i++) {
