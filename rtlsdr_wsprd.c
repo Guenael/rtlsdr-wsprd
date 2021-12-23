@@ -847,18 +847,18 @@ int main(int argc, char **argv) {
     if (rx_options.selftest == true) {
         if (decoderSelfTest()) {
             fprintf(stdout, "Self-test SUCCESS!\n");
-            exit(0);
+            return EXIT_SUCCESS;
         }
         else {
             fprintf(stderr, "Self-test FAILED!\n");
-            exit(1);
+            return EXIT_FAILURE;
         }
     }
 
     if (rx_options.readfile == true) {
         fprintf(stdout, "Reading IQ file: %s\n", rx_options.filename);
         decodeRecordedFile(rx_options.filename);
-        exit(0);
+        return EXIT_SUCCESS;
     }
 
     if (rx_options.writefile == true) {
@@ -868,19 +868,19 @@ int main(int argc, char **argv) {
     if (rx_options.dialfreq == 0) {
         fprintf(stderr, "Please specify a dial frequency.\n");
         fprintf(stderr, " --help for usage...\n");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     if (dec_options.rcall[0] == 0) {
         fprintf(stderr, "Please specify your callsign.\n");
         fprintf(stderr, " --help for usage...\n");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     if (dec_options.rloc[0] == 0) {
         fprintf(stderr, "Please specify your locator.\n");
         fprintf(stderr, " --help for usage...\n");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     /* Calcule shift offset */
