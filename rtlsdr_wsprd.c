@@ -94,7 +94,7 @@ struct receiver_options {
     bool     selftest;
     bool     writefile;
     bool     readfile;
-    char     filename[33];
+    char     *filename;
 };
 
 
@@ -575,13 +575,70 @@ int32_t writeRawIQfile(float *iSamples, float *qSamples, char *filename) {
 }
 
 
+int32_t readC2file(float *iSamples, float *qSamples, char *filename) {
+    float filebuffer[2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
+    FILE *fd = fopen(filename, "rb");
+    int32_t nread;
+    double frequency;
+    int    type;
+    char   name[15];
+
+    if (fd == NULL) {
+        fprintf(stderr, "Cannot open data file...\n");
+        return 0;
+    }
+
+    /* Get the size of the file */
+    fseek(fd, 0L, SEEK_END);
+    int32_t recsize = ftell(fd) / (2 * sizeof(float)) - 26;
+    fseek(fd, 0L, SEEK_SET);
+
+    /* Limit the file/buffer to the max samples */
+    if (recsize > SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) {
+        recsize = SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE;
+    }
+
+    /* Read the header */
+    nread = fread(name, sizeof(char), 14, fd);
+    nread = fread(&type, sizeof(int), 1, fd);
+    nread = fread(&frequency, sizeof(double), 1, fd);
+    dec_options.freq = frequency;
+
+    /* Read the IQ file */
+    nread = fread(filebuffer, sizeof(float), 2 * recsize, fd);
+    if (nread != 2 * recsize) {
+        fprintf(stderr, "Cannot read all the data! %d\n", nread);
+        fclose(fd);
+        return 0;
+    } else {
+        fclose(fd);
+    }
+
+    /* Convert the interleaved buffer into 2 buffers */
+    for (int32_t i = 0; i < recsize; i++) {
+        iSamples[i] =  filebuffer[2 * i];
+        qSamples[i] = -filebuffer[2 * i + 1];  // neg, convention used by wsprsim
+    }
+
+    return recsize;
+}
+
+
 void decodeRecordedFile(char *filename) {
     static float iSamples[SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE] = {0};
     static float qSamples[SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE] = {0};
     static uint32_t samples_len;
     int32_t n_results = 0;
 
-    samples_len = readRawIQfile(iSamples, qSamples, filename);
+    if (strcmp(&filename[strlen(filename)-3], ".iq") == 0) {
+        samples_len = readRawIQfile(iSamples, qSamples, filename);
+    } else if (strcmp(&filename[strlen(filename)-3], ".c2") == 0) {
+        samples_len = readC2file(iSamples, qSamples, filename);
+    } else {
+        fprintf(stderr, "Not a valid extension!! (only .iq & .c2 files)\n");
+        return;
+    }
+
     printf("Number of samples: %d\n", samples_len);
 
     if (samples_len) {
@@ -714,7 +771,7 @@ void usage(void) {
             "Debugging options:\n"
             "\t-t decoder self-test (generate a signal & decode), no parameter\n"
             "\t-w write received signal and exit [filename prefix]\n"
-            "\t-r read signal, decode and exit [filename]\n"
+            "\t-r read signal with .iq or .c2 format, decode and exit [filename]\n"
             "\t   (raw format: 375sps, float 32 bits, 2 channels)\n"
             "Example:\n"
             "\trtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29 -o -4200\n");
@@ -853,13 +910,13 @@ int main(int argc, char **argv) {
             case 't':  // Seft test (used in unit-test CI pipeline)
                 rx_options.selftest = true;
                 break;
-            case 'w':  // Read a signal and decode
+            case 'w':  // Write a signal and exit
                 rx_options.writefile = true;
-                snprintf(rx_options.filename, sizeof(rx_options.filename), "%.32s", optarg);
+                rx_options.filename = optarg;
                 break;
-            case 'r':  // Write a signal and exit
+            case 'r':  // Read a signal and decode
                 rx_options.readfile = true;
-                snprintf(rx_options.filename, sizeof(rx_options.filename), "%.32s", optarg);
+                rx_options.filename = optarg;
                 break;
             default:
                 usage();
