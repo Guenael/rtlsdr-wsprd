@@ -136,3 +136,18 @@ Some manufacturers integrate a 0.5ppm TCXO. It's the best second option, after a
 - NooElec NESDR SMART : Works fine out of the box
 - RTL-SDR Blog 1PPM TCXO : Works with some drift, require additional mass, or a better enclosure
 - Other no-name like : RT820, E4000, FC0012, FC0013, can work, but require modification and usually drift a lot
+
+## Performance & hardware tests
+
+Some performance tests using:
+- Raspbian GNU/Linux 11 (bullseye) for Raspberry Pi devices
+- rtlsdr-wsprd version 0.4.2
+- Build with `clang -O3 -std=gnu17`
+
+| Hardware  | Supported          | RX Load | Decode burst |
+| --------- | ------------------ | ------- | ------------ |
+| RPi-1     | :heavy_check_mark: | 23.2%   | 8.4s         |
+| RPi-2     | :heavy_check_mark: | 13.5%   | 4.1s         |
+| RPi-3     | :heavy_check_mark: | 10.9%   | 2.1s         |
+| RPi-4     | :heavy_check_mark: |  5.8%   | 1.1s         |
+| i7-5820K  | :heavy_check_mark: |  1.7%   | 0.5s         |
