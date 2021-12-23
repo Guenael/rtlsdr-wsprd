@@ -35,45 +35,70 @@
 
 /* Option & config of decoder (Shared with the wsprd code) */
 struct decoder_options {
-    uint32_t  freq;          // Dial frequency
-    char      rcall[13];     // Callsign of the RX station
-    char      rloc[7];       // Locator of the RX station
-    uint32_t  quickmode;     // Decoder option & tweak
-    uint32_t  usehashtable;  //  ''
-    uint32_t  npasses;       //  ''
-    uint32_t  subtraction;   //  ''
+    int  freq;          // Dial frequency
+    char rcall[13];     // Callsign of the RX station
+    char rloc[7];       // Locator of the RX station
+    int  quickmode;     // Decoder option & tweak
+    int  usehashtable;  //  ''
+    int  npasses;       //  ''
+    int  subtraction;   //  ''
 };
 
 struct cand {
-    float    freq;
-    float    snr;
-    int      shift;
-    float    drift;
-    float    sync;
+    float  freq;
+    float  snr;
+    int    shift;
+    float  drift;
+    float  sync;
 };
 
 struct decoder_results {
-    double   freq;
-    float    sync;
-    float    snr;
-    float    dt;
-    float    drift;
-    int32_t  jitter;
-    char     message[23];
-    char     call[13];
-    char     loc[7];
-    char     pwr[3];
-    uint32_t cycles;
+    double freq;
+    float  sync;
+    float  snr;
+    float  dt;
+    float  drift;
+    int    jitter;
+    char   message[23];
+    char   call[13];
+    char   loc[7];
+    char   pwr[3];
+    int    cycles;
 };
 
-void sync_and_demodulate(float *id, float *qd, long np,
-                         unsigned char *symbols, float *f1, int ifmin, int ifmax, float fstep,
-                         int *shift1, int lagmin, int lagmax, int lagstep,
-                         float *drift1, int symfac, float *sync, int mode);
-void subtract_signal(float *id, float *qd, long np,
-                     float f0, int shift0, float drift0, unsigned char *channel_symbols);
-void subtract_signal2(float *id, float *qd, long np,
-                      float f0, int shift0, float drift0, unsigned char *channel_symbols);
-int32_t wspr_decode(float *idat, float *qdat, int samples,
-                    struct decoder_options options, struct decoder_results *decodes,
-                    int32_t *n_results);
+void sync_and_demodulate(float *id,
+                         float *qd,
+                         long  np,
+                         unsigned char *symbols,
+                         float *f1,
+                         int   ifmin,
+                         int   ifmax,
+                         float fstep,
+                         int   *shift1,
+                         int   lagmin,
+                         int   lagmax,
+                         int   lagstep,
+                         float *drift1,
+                         int   symfac,
+                         float *sync,
+                         int   mode);
+void subtract_signal(float *id,
+                     float *qd,
+                     long  np,
+                     float f0,
+                     int   shift0,
+                     float drift0,
+                     unsigned char *channel_symbols);
+void subtract_signal2(float *id,
+                      float *qd,
+                      long np,
+                      float f0,
+                      int shift0,
+                      float drift0,
+                      unsigned char *channel_symbols);
+int wspr_decode(float  *idat, 
+                float  *qdat, 
+                int    samples,
+                struct decoder_options options, 
+                struct decoder_results *decodes,
+                int    *n_results);

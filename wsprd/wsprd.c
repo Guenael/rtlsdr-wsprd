@@ -401,7 +401,7 @@ void subtract_signal2(float *id,
 }
 
 
-int32_t wspr_decode(float  *idat, 
+int wspr_decode(float  *idat, 
                     float  *qdat, 
                     int    samples,
                     struct decoder_options options, 
@@ -440,6 +440,7 @@ int32_t wspr_decode(float  *idat,
     uint32_t metric, cycles, maxnp;
 
     /* Candidates */
+    struct cand candidates[200];
     float freq0[200],  freq1  = 0.0;
     float drift0[200], drift1 = 0.0;
     float sync0[200],  sync1  = 0.0;
