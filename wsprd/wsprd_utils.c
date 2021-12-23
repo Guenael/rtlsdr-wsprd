@@ -297,7 +297,7 @@ int unpk_(signed char *message, char *hashtab, char *loctab, char *call_loc_pow,
             strncat(call_loc_pow, cdbm, 2);
             strncat(call_loc_pow, "\0", 1);
             int nu = ndbm % 10;
-            if (nu == 0 || nu == 3 || nu == 7 || nu == 10) {  // make sure power is OK
+            if (nu == 0 || nu == 3 || nu == 7) {  // make sure power is OK
                 ihash = nhash(callsign, strlen(callsign), (uint32_t)146);
                 strcpy(hashtab + ihash * 13, callsign);
             } else
