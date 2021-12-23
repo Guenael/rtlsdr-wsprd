@@ -454,10 +454,10 @@ int wspr_decode(float  *idat,
 
     /* Setup metric table */
     int32_t mettab[2][256];
-    float bias = 0.42;
+    float bias = 0.45;
     for (int i = 0; i < 256; i++) {
-        mettab[0][i] = round(10 * (metric_tables[2][i] - bias));
-        mettab[1][i] = round(10 * (metric_tables[2][255 - i] - bias));
+        mettab[0][i] = roundf(10.0 * (metric_tables[2][i] - bias));
+        mettab[1][i] = roundf(10.0 * (metric_tables[2][255 - i] - bias));
     }
 
     /* Setup/Load hash tables */
