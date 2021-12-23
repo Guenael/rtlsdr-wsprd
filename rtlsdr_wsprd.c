@@ -324,7 +324,7 @@ void postSpots(uint32_t n_results) {
     // "Table 'wsprnet_db.activity' doesn't exist" reported on web site...
     // Anyone has doc about this?
     if (n_results == 0) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-wsprd_v0.4.2&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-050&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  rx_options.realfreq / 1e6,
@@ -347,7 +347,7 @@ void postSpots(uint32_t n_results) {
     }
 
     for (uint32_t i = 0; i < n_results; i++) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-wsprd_v0.4.2&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-050&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  dec_results[i].freq,
@@ -612,10 +612,10 @@ int32_t decoderSelfTest() {
     unsigned char symbols[162];
     char message[] = "K1JT FN20QI 20";
     char hashtab[32768*13] = {0};
-    //char loctab[32768*5]   = {0};  // EVAL: code update from wsprd
+    char loctab[32768*5]   = {0};  // EVAL: code update from wsprd
 
     // Compute sympbols from the message
-    get_wspr_channel_symbols(message, hashtab,  symbols);
+    get_wspr_channel_symbols(message, hashtab, loctab, symbols);
 
     float  f0  = 50.0;
     float  t0  = 2.0;  // Caution!! Possible buffer overflow with the index calculation (no user input here!)
@@ -721,28 +721,53 @@ int main(int argc, char **argv) {
             case 'f':  // Frequency
                 if (!strcasecmp(optarg, "LF")) {
                     rx_options.dialfreq = 136000;
+                    // Implicit direct sampling for HF bands & lower
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "MF")) {
                     rx_options.dialfreq = 474200;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "160m")) {
                     rx_options.dialfreq = 1836600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "80m")) {
                     rx_options.dialfreq = 3592600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "60m")) {
                     rx_options.dialfreq = 5287200;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "40m")) {
                     rx_options.dialfreq = 7038600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "30m")) {
                     rx_options.dialfreq = 10138700;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "20m")) {
                     rx_options.dialfreq = 14095600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "17m")) {
                     rx_options.dialfreq = 18104600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "15m")) {
                     rx_options.dialfreq = 21094600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "12m")) {
                     rx_options.dialfreq = 24924600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "10m")) {
                     rx_options.dialfreq = 28124600;
+                    if (!rx_options.directsampling)
+                        rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "6m")) {
                     rx_options.dialfreq = 50293000;
                 } else if (!strcasecmp(optarg, "4m")) {
@@ -822,18 +847,18 @@ int main(int argc, char **argv) {
     if (rx_options.selftest == true) {
         if (decoderSelfTest()) {
             fprintf(stdout, "Self-test SUCCESS!\n");
-            exit(0);
+            return EXIT_SUCCESS;
         }
         else {
             fprintf(stderr, "Self-test FAILED!\n");
-            exit(1);
+            return EXIT_FAILURE;
         }
     }
 
     if (rx_options.readfile == true) {
         fprintf(stdout, "Reading IQ file: %s\n", rx_options.filename);
         decodeRecordedFile(rx_options.filename);
-        exit(0);
+        return EXIT_SUCCESS;
     }
 
     if (rx_options.writefile == true) {
@@ -843,19 +868,19 @@ int main(int argc, char **argv) {
     if (rx_options.dialfreq == 0) {
         fprintf(stderr, "Please specify a dial frequency.\n");
         fprintf(stderr, " --help for usage...\n");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     if (dec_options.rcall[0] == 0) {
         fprintf(stderr, "Please specify your callsign.\n");
         fprintf(stderr, " --help for usage...\n");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     if (dec_options.rloc[0] == 0) {
         fprintf(stderr, "Please specify your locator.\n");
         fprintf(stderr, " --help for usage...\n");
-        exit(1);
+        return EXIT_FAILURE;
     }
 
     /* Calcule shift offset */
@@ -961,7 +986,7 @@ int main(int argc, char **argv) {
     struct tm *gtm = gmtime(&rawtime);
 
     /* Print used parameter */
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.4.2\n",
+    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.5.0\n",
            gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
     printf("  Callsign     : %s\n",    dec_options.rcall);
     printf("  Locator      : %s\n",    dec_options.rloc);

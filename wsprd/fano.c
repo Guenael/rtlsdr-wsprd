@@ -166,8 +166,7 @@ int fano(unsigned int *metric,      // Final path metric (returned value)
                  */
                 while (ngamma >= t + delta) t += delta;
             }
-            // Move forward
-            np[1].gamma = ngamma;
+            np[1].gamma = ngamma;  // Move forward
             np[1].encstate = np->encstate << 1;
             if (++np == (lastnode + 1)) {
                 break;  // Done!
@@ -194,14 +193,11 @@ int fano(unsigned int *metric,      // Final path metric (returned value)
                     np->encstate++;  // Set low bit
                 }
             }
-            np->i = 0;
-            // Start with best branch
+            np->i = 0;  // Start with best branch
             continue;
         }
-
         // Threshold violated, can't go forward
-        for (;;) {
-            // Look backward
+        for (;;) {  // Look backward
             if (np == nodes || np[-1].gamma < t) {
                 /* Can't back up either.
                  * Relax threshold and and look
@@ -214,7 +210,6 @@ int fano(unsigned int *metric,      // Final path metric (returned value)
                 }
                 break;
             }
-
             // Back up
             if (--np < tail && np->i != 1) {
                 np->i++;  // Search next best branch
