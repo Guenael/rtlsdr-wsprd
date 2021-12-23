@@ -401,45 +401,52 @@ void subtract_signal2(float *id,
 }
 
 
-int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
-                    struct decoder_options options, struct decoder_results *decodes,
-                    int32_t *n_results) {
+int32_t wspr_decode(float  *idat, 
+                    float  *qdat, 
+                    int    samples,
+                    struct decoder_options options, 
+                    struct decoder_results *decodes,
+                    int    *n_results) {
 
     uint8_t symbols[NBITS * 2] = {0};
     uint8_t decdata[(NBITS + 7) / 8] = {0};
     int8_t  message[12] = {0};
 
-    float   freq0[200], freq1 = 0.0;
-    float   drift0[200], drift1 = 0.0;
-    float   sync0[200], sync1 = 0.0;
-    float   snr0[200];
-    int32_t shift0[200], shift1 = 0;
+    /* Parameters used for performance-tuning */
+    float minsync1 = 0.10;                    // First sync limit
+    float minsync2 = 0.12;                    // Second sync limit
+    int   iifac    = 3;                       // Step size in final DT peakup
+    int   symfac   = 50;                      // Soft-symbol normalizing factor
+    int   maxdrift = 4;                       // Maximum (+/-) drift
+    float minrms   = 52.0 * (symfac / 64.0);  // Final test for plausible decoding
+    int   delta    = 60;                      // Fano threshold step
+    int   maxcycles = 10000;                  // Fano timeout limit
+    float fmin     = -110.0;
+    float fmax     =  110.0;
 
-    uint32_t metric, cycles, maxnp;
-    int32_t worth_a_try;
-    int32_t uniques = 0;
-
-    // Search tuning parameters
+    /* Search live parameters */
     float fstep;
     int   lagmin;
     int   lagmax;
     int   lagstep;
     int   ifmin;
     int   ifmax;
-    float fmin = -110.0;
-    float fmax = 110.0;
 
-    // Parameters used for performance-tuning:
-    uint32_t maxcycles = 10000;               // Fano timeout limit
-    double  minsync1 = 0.10;                  // First sync limit
-    double  minsync2 = 0.12;                  // Second sync limit
-    int32_t iifac = 3;                        // Step size in final DT peakup
-    int32_t symfac = 50;                      // Soft-symbol normalizing factor
-    int32_t maxdrift = 4;                     // Maximum (+/-) drift
-    double  minrms = 52.0 * (symfac / 64.0);  // Final test for plausible decoding
-    int32_t delta = 60;                       // Fano threshold step
+    /* Decoder flags */
+    int   worth_a_try;
+    int   uniques = 0;
 
-    // Results
+    /* CPU usage stats */
+    uint32_t metric, cycles, maxnp;
+
+    /* Candidates */
+    float freq0[200],  freq1  = 0.0;
+    float drift0[200], drift1 = 0.0;
+    float sync0[200],  sync1  = 0.0;
+    float snr0[200];
+    int   shift0[200], shift1 = 0;
+
+    /* Results */
     float allfreqs[100] = {0};
     char  allcalls[100][13] = {0};
     char  callsign[13] = {0};
@@ -495,7 +502,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
     }
 
     /* FFT output alloc */
-    const int blocks = 4 * floor(npoints / 512) - 1;
+    const int blocks = 4 * floor(samples / 512) - 1;
     float ps[512][blocks];
     memset(ps, 0.0, sizeof(float) * 512 * blocks);
 
@@ -710,14 +717,14 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
             lagstep = 8;
             if (options.quickmode)
                 lagstep = 16;
-            sync_and_demodulate(idat, qdat, npoints, symbols, &freq1, ifmin, ifmax, fstep, &shift1,
+            sync_and_demodulate(idat, qdat, samples, symbols, &freq1, ifmin, ifmax, fstep, &shift1,
                                 lagmin, lagmax, lagstep, &drift1, symfac, &sync1, 0);
 
             // Coarse-grid search for frequency peak (mode 1)
             fstep = 0.1;
             ifmin = -2;
             ifmax = 2;
-            sync_and_demodulate(idat, qdat, npoints, symbols, &freq1, ifmin, ifmax, fstep, &shift1,
+            sync_and_demodulate(idat, qdat, samples, symbols, &freq1, ifmin, ifmax, fstep, &shift1,
                                 lagmin, lagmax, lagstep, &drift1, symfac, &sync1, 1);
 
             if (sync1 > minsync1) {
@@ -735,7 +742,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
                 int jiggered_shift = shift1 + ii;
 
                 // Use mode 2 to get soft-decision symbols
-                sync_and_demodulate(idat, qdat, npoints, symbols, &freq1, ifmin, ifmax, fstep,
+                sync_and_demodulate(idat, qdat, samples, symbols, &freq1, ifmin, ifmax, fstep,
                                     &jiggered_shift, lagmin, lagmax, lagstep, &drift1, symfac,
                                     &sync1, 2);
                 float sq = 0.0;
@@ -772,7 +779,7 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
 
                     //if (get_wspr_channel_symbols(call_loc_pow, hashtab, channel_symbols)) {
                     if (get_wspr_channel_symbols(call_loc_pow, hashtab, loctab, channel_symbols)) {
-                        subtract_signal2(idat, qdat, npoints, freq1, shift1, drift1, channel_symbols);
+                        subtract_signal2(idat, qdat, samples, freq1, shift1, drift1, channel_symbols);
                     } else {
                         break;
                     }
@@ -791,14 +798,14 @@ int32_t wspr_decode(float *idat, float *qdat, uint32_t npoints,
                     uniques++;
 
                     double dialfreq = (double)options.freq / 1e6;
-                    double freq_print = dialfreq + (1500 + freq1) / 1e6;
+                    double freq_print = dialfreq + (1500.0 + freq1) / 1e6;
                     float dt_print = shift1 * DT - 2.0;
 
-                    decodes[uniques - 1].sync = sync1;
-                    decodes[uniques - 1].snr = snr0[j];
-                    decodes[uniques - 1].dt = dt_print;
-                    decodes[uniques - 1].freq = freq_print;
-                    decodes[uniques - 1].drift = drift1;
+                    decodes[uniques - 1].sync   = sync1;
+                    decodes[uniques - 1].snr    = snr0[j];
+                    decodes[uniques - 1].dt     = dt_print;
+                    decodes[uniques - 1].freq   = freq_print;
+                    decodes[uniques - 1].drift  = drift1;
                     decodes[uniques - 1].cycles = cycles;
                     decodes[uniques - 1].jitter = ii;
                     strcpy(decodes[uniques - 1].message, call_loc_pow);
