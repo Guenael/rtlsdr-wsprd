@@ -61,5 +61,5 @@ jobs:
     - name: Unit-Test
       run: |
         echo "===== Decoder self-test ====="
-        ./rtlsdr_wsprd -r ./signals/refSignalSnr0dB.iq
-        ./rtlsdr_wsprd -t
+        ./rtlsdr_wsprd -f 2m -c A1XYZ -l AB12CD -r ./signals/refSignalSnr0dB.iq
+        ./rtlsdr_wsprd -f 2m -c A1XYZ -l AB12CD -t

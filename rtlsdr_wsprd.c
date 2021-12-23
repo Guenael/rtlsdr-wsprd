@@ -347,12 +347,12 @@ void postSpots(uint32_t n_results) {
     // "Table 'wsprnet_db.activity' doesn't exist" reported on web site...
     // Anyone has doc about this?
     if (n_results == 0) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-051&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-052&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
-                 rx_options.realfreq / 1e6,
+                 rx_options.dialfreq / 1e6,
                  0.0f,
-                 rx_options.realfreq / 1e6,
+                 rx_options.dialfreq / 1e6,
                  0);
 
         curl = curl_easy_init();
@@ -370,7 +370,7 @@ void postSpots(uint32_t n_results) {
     }
 
     for (uint32_t i = 0; i < n_results; i++) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-051&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-052&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  dec_results[i].freq,
@@ -602,7 +602,7 @@ int32_t readC2file(float *iSamples, float *qSamples, char *filename) {
     nread = fread(name, sizeof(char), 14, fd);
     nread = fread(&type, sizeof(int), 1, fd);
     nread = fread(&frequency, sizeof(double), 1, fd);
-    dec_options.freq = frequency;
+    rx_options.dialfreq = frequency;
 
     /* Read the IQ file */
     nread = fread(filebuffer, sizeof(float), 2 * recsize, fd);
@@ -924,27 +924,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (rx_options.selftest == true) {
-        if (decoderSelfTest()) {
-            fprintf(stdout, "Self-test SUCCESS!\n");
-            return EXIT_SUCCESS;
-        }
-        else {
-            fprintf(stderr, "Self-test FAILED!\n");
-            return EXIT_FAILURE;
-        }
-    }
-
-    if (rx_options.readfile == true) {
-        fprintf(stdout, "Reading IQ file: %s\n", rx_options.filename);
-        decodeRecordedFile(rx_options.filename);
-        return EXIT_SUCCESS;
-    }
-
-    if (rx_options.writefile == true) {
-        fprintf(stdout, "Saving IQ file planned with prefix: %.8s\n", rx_options.filename);
-    }
-
     if (rx_options.dialfreq == 0) {
         fprintf(stderr, "Please specify a dial frequency.\n");
         fprintf(stderr, " --help for usage...\n");
@@ -968,6 +947,27 @@ int main(int argc, char **argv) {
 
     /* Store the frequency used for the decoder */
     dec_options.freq = rx_options.dialfreq;
+
+    if (rx_options.selftest == true) {
+        if (decoderSelfTest()) {
+            fprintf(stdout, "Self-test SUCCESS!\n");
+            return EXIT_SUCCESS;
+        }
+        else {
+            fprintf(stderr, "Self-test FAILED!\n");
+            return EXIT_FAILURE;
+        }
+    }
+
+    if (rx_options.readfile == true) {
+        fprintf(stdout, "Reading IQ file: %s\n", rx_options.filename);
+        decodeRecordedFile(rx_options.filename);
+        return EXIT_SUCCESS;
+    }
+
+    if (rx_options.writefile == true) {
+        fprintf(stdout, "Saving IQ file planned with prefix: %.8s\n", rx_options.filename);
+    }
 
     /* If something goes wrong... */
     signal(SIGINT,  &sigint_callback_handler);
@@ -1066,7 +1066,7 @@ int main(int argc, char **argv) {
     struct tm *gtm = gmtime(&rawtime);
 
     /* Print used parameter */
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.5.1\n",
+    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.5.2\n",
            gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
     printf("  Callsign     : %s\n",    dec_options.rcall);
     printf("  Locator      : %s\n",    dec_options.rloc);
