@@ -4,9 +4,6 @@
  * should be normalized to have rms amplitude equal to "symbol_scale".
  ********************************************************************************/
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-braces"
-
 //float symbol_scale[5]={42.6, 53.3, 72.7, 100.2, 125.4};
 float metric_tables[5][256]={
     {0.9782,      0.9695,      0.9689,      0.9669,      0.9666,      0.9653,      0.9638,      0.9618,      0.9599,      0.9601, 
@@ -140,5 +137,3 @@ float metric_tables[5][256]={
    -17.5973,    -17.0403,    -17.7039,    -18.0073,    -18.1840,    -18.3848,    -18.6286,    -20.7063,          1.43370769e-019,
      2.64031087e-006,  6.6908396e+031,          1.77537994e+028,          2.79322819e+020,             1.94326e-019,
      0.00019371575,   2.80722121e-041}};
-
-#pragma GCC diagnostic pop
