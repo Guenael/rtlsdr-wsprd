@@ -311,7 +311,7 @@ int unpk_(signed char *message, char *hashtab, char *loctab, char *call_loc_pow,
         strncat(grid6, callsign + len - 1, 1);
         strncat(grid6, callsign, len - 1);
         int nu = ndbm % 10;
-        if ((nu != 0 && nu != 3 && nu != 7 && nu != 10) ||
+        if ((nu != 0 && nu != 3 && nu != 7) ||
             !isalpha(grid6[0]) || !isalpha(grid6[1]) ||
             !isdigit(grid6[2]) || !isdigit(grid6[3])) {
             // not testing 4'th and 5'th chars because of this case: <PA0SKT/2> JO33 40
