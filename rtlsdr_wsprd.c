@@ -122,20 +122,6 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
        Using : Octave/MATLAB code for generating compensation FIR coefficients
        URL : https://github.com/WestCoastDSP/CIC_Octave_Matlab
      */
-    // /* Coefs with R=6400, M=1, N=2, F0=0.45, L=32 */
-    // const static float zCoef[33] = {
-    //     -0.0018102029,  0.0021374727,  0.0039187458, -0.0025019918,
-    //     -0.0097042058,  0.0007581166,  0.0199914435,  0.0076257829,
-    //     -0.0333186890, -0.0286290175,  0.0447517831,  0.0705913907,
-    //     -0.0423330196, -0.1501946045, -0.0158817961,  0.3175072196,
-    //      0.5000000000,
-    //      0.3175072196, -0.0158817961, -0.1501946045, -0.0423330196,
-    //      0.0705913907,  0.0447517831, -0.0286290175, -0.0333186890,
-    //      0.0076257829,  0.0199914435,  0.0007581166, -0.0097042058,
-    //     -0.0025019918,  0.0039187458,  0.0021374727, -0.0018102029,
-    // };
-
-    // DBG -- Old coefs, BW issue with SNR computation
     const static float zCoef[33] = {
         -0.0027772683, -0.0005058826,  0.0049745750, -0.0034059318,
         -0.0077557814,  0.0139375423,  0.0039896935, -0.0299394142,
@@ -360,7 +346,7 @@ void postSpots(uint32_t n_results) {
     // "Table 'wsprnet_db.activity' doesn't exist" reported on web site...
     // Anyone has doc about this?
     if (n_results == 0) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-052&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-053&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  rx_options.dialfreq / 1e6,
@@ -383,7 +369,7 @@ void postSpots(uint32_t n_results) {
     }
 
     for (uint32_t i = 0; i < n_results; i++) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-052&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-053&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  dec_results[i].freq,
@@ -1113,7 +1099,7 @@ int main(int argc, char **argv) {
     struct tm *gtm = gmtime(&rawtime);
 
     /* Print used parameter */
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.5.2\n",
+    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.5.3\n",
            gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
     printf("  Callsign     : %s\n",    dec_options.rcall);
     printf("  Locator      : %s\n",    dec_options.rloc);
