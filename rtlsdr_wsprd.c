@@ -122,17 +122,30 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
        Using : Octave/MATLAB code for generating compensation FIR coefficients
        URL : https://github.com/WestCoastDSP/CIC_Octave_Matlab
      */
-    /* Coefs with R=6400, M=1, N=2, F0=0.45, L=32 */
+    // /* Coefs with R=6400, M=1, N=2, F0=0.45, L=32 */
+    // const static float zCoef[33] = {
+    //     -0.0018102029,  0.0021374727,  0.0039187458, -0.0025019918,
+    //     -0.0097042058,  0.0007581166,  0.0199914435,  0.0076257829,
+    //     -0.0333186890, -0.0286290175,  0.0447517831,  0.0705913907,
+    //     -0.0423330196, -0.1501946045, -0.0158817961,  0.3175072196,
+    //      0.5000000000,
+    //      0.3175072196, -0.0158817961, -0.1501946045, -0.0423330196,
+    //      0.0705913907,  0.0447517831, -0.0286290175, -0.0333186890,
+    //      0.0076257829,  0.0199914435,  0.0007581166, -0.0097042058,
+    //     -0.0025019918,  0.0039187458,  0.0021374727, -0.0018102029,
+    // };
+
+    // DBG -- Old coefs, BW issue with SNR computation
     const static float zCoef[33] = {
-        -0.0018102029,  0.0021374727,  0.0039187458, -0.0025019918,
-        -0.0097042058,  0.0007581166,  0.0199914435,  0.0076257829,
-        -0.0333186890, -0.0286290175,  0.0447517831,  0.0705913907,
-        -0.0423330196, -0.1501946045, -0.0158817961,  0.3175072196,
+        -0.0027772683, -0.0005058826,  0.0049745750, -0.0034059318,
+        -0.0077557814,  0.0139375423,  0.0039896935, -0.0299394142,
+         0.0162250643,  0.0405130860, -0.0580746013, -0.0272104968,
+         0.1183705475, -0.0306029022, -0.2011241667,  0.1615898423,
          0.5000000000,
-         0.3175072196, -0.0158817961, -0.1501946045, -0.0423330196,
-         0.0705913907,  0.0447517831, -0.0286290175, -0.0333186890,
-         0.0076257829,  0.0199914435,  0.0007581166, -0.0097042058,
-        -0.0025019918,  0.0039187458,  0.0021374727, -0.0018102029,
+         0.1615898423, -0.2011241667, -0.0306029022,  0.1183705475,
+        -0.0272104968, -0.0580746013,  0.0405130860,  0.0162250643,
+        -0.0299394142,  0.0039896935,  0.0139375423, -0.0077557814,
+        -0.0034059318,  0.0049745750, -0.0005058826, -0.0027772683
     };
 
     /* FIR compensation filter buffers */
@@ -266,7 +279,7 @@ static void *decoder(void *arg) {
         }
 
         /* Normalize the sample @-3dB */
-        float maxSig = 0.0f;
+        float maxSig = 1e-24f;
         for (int i = 0; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
             float absI = fabs(rx_state.iSamples[prevBuffer][i]);
             float absQ = fabs(rx_state.qSamples[prevBuffer][i]);
@@ -546,6 +559,23 @@ int32_t readRawIQfile(float *iSamples, float *qSamples, char *filename) {
         qSamples[i] = -filebuffer[2 * i + 1];  // neg, convention used by wsprsim
     }
 
+    /* Normalize the sample @-3dB */
+    float maxSig = 1e-24f;
+    for (int i = 0; i < recsize; i++) {
+        float absI = fabs(iSamples[i]);
+        float absQ = fabs(qSamples[i]);
+
+        if (absI > maxSig)
+            maxSig = absI;
+        if (absQ > maxSig)
+            maxSig = absQ;
+    }
+    maxSig = 0.5 / maxSig;
+    for (int i = 0; i <recsize; i++) {
+        iSamples[i] *= maxSig;
+        qSamples[i] *= maxSig;
+    }
+
     return recsize;
 }
 
@@ -618,6 +648,23 @@ int32_t readC2file(float *iSamples, float *qSamples, char *filename) {
     for (int32_t i = 0; i < recsize; i++) {
         iSamples[i] =  filebuffer[2 * i];
         qSamples[i] = -filebuffer[2 * i + 1];  // neg, convention used by wsprsim
+    }
+
+    /* Normalize the sample @-3dB */
+    float maxSig = 1e-24f;
+    for (int i = 0; i < recsize; i++) {
+        float absI = fabs(iSamples[i]);
+        float absQ = fabs(qSamples[i]);
+
+        if (absI > maxSig)
+            maxSig = absI;
+        if (absQ > maxSig)
+            maxSig = absQ;
+    }
+    maxSig = 0.5 / maxSig;
+    for (int i = 0; i <recsize; i++) {
+        iSamples[i] *= maxSig;
+        qSamples[i] *= maxSig;
     }
 
     return recsize;
