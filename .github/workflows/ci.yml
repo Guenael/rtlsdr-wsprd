@@ -63,3 +63,13 @@ jobs:
         echo "===== Decoder self-test ====="
         ./rtlsdr_wsprd -f 2m -c A1XYZ -l AB12CD -r ./signals/refSignalSnr0dB.iq
         ./rtlsdr_wsprd -f 2m -c A1XYZ -l AB12CD -t
+
+    - name: Codecov
+      run: |
+        echo "===== Codecov ====="
+        export EXTRA_CFLAGS="-coverage -O0 -Wall"
+        export EXTRA_LIBS="-coverage"
+        make clean all
+        ./rtlsdr_wsprd -f 2m -c A1XYZ -l AB12CD -t
+        gcov rtlsdr_wsprd.c
+        bash <(curl -s https://codecov.io/bash)

@@ -1,6 +1,6 @@
 CC = clang
-CFLAGS = -O3 -std=gnu17
-LIBS = -lusb-1.0 -lrtlsdr -lpthread -lfftw3f -lcurl -lm
+CFLAGS = -std=gnu17 $(EXTRA_CFLAGS)
+LIBS = -lusb-1.0 -lrtlsdr -lpthread -lfftw3f -lcurl -lm $(EXTRA_LIBS)
 
 # Note
 #   gcc is a bit faster that clang on this app
