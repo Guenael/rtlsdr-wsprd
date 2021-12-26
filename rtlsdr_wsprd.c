@@ -606,7 +606,7 @@ int32_t readC2file(float *iSamples, float *qSamples, char *filename) {
 
     /* Get the size of the file */
     fseek(fd, 0L, SEEK_END);
-    int32_t recsize = ftell(fd) / (2 * sizeof(float)) - 26;
+    int32_t recsize = (ftell(fd) - 26) / (2 * sizeof(float));
     fseek(fd, 0L, SEEK_SET);
 
     /* Limit the file/buffer to the max samples */
