@@ -518,26 +518,9 @@ int32_t readRawIQfile(float *iSamples, float *qSamples, char *filename) {
         return 0;
     }
 
-    /* Get the size of the file */
-    fseek(fd, 0L, SEEK_END);
-    int32_t recsize = ftell(fd) / (2 * sizeof(float));
-    fseek(fd, 0L, SEEK_SET);
-
-
-    /* Limit the file/buffer to the max samples */
-    if (recsize > SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) {
-        recsize = SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE;
-    }
-
     /* Read the IQ file */
-    int32_t nread = fread(filebuffer, sizeof(float), 2 * recsize, fd);
-    if (nread != 2 * recsize) {
-        fprintf(stderr, "Cannot read all the data! %d\n", nread);
-        fclose(fd);
-        return 0;
-    } else {
-        fclose(fd);
-    }
+    int32_t nread = fread(filebuffer, sizeof(float), 2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE, fd);
+    int32_t recsize = nread / 2;
 
     /* Convert the interleaved buffer into 2 buffers */
     for (int32_t i = 0; i < recsize; i++) {
@@ -604,16 +587,6 @@ int32_t readC2file(float *iSamples, float *qSamples, char *filename) {
         return 0;
     }
 
-    /* Get the size of the file */
-    fseek(fd, 0L, SEEK_END);
-    int32_t recsize = (ftell(fd) - 26) / (2 * sizeof(float));
-    fseek(fd, 0L, SEEK_SET);
-
-    /* Limit the file/buffer to the max samples */
-    if (recsize > SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE) {
-        recsize = SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE;
-    }
-
     /* Read the header */
     nread = fread(name, sizeof(char), 14, fd);
     nread = fread(&type, sizeof(int), 1, fd);
@@ -621,14 +594,8 @@ int32_t readC2file(float *iSamples, float *qSamples, char *filename) {
     rx_options.dialfreq = frequency;
 
     /* Read the IQ file */
-    nread = fread(filebuffer, sizeof(float), 2 * recsize, fd);
-    if (nread != 2 * recsize) {
-        fprintf(stderr, "Cannot read all the data! %d\n", nread);
-        fclose(fd);
-        return 0;
-    } else {
-        fclose(fd);
-    }
+    nread = fread(filebuffer, sizeof(float), 2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE, fd);
+    int32_t recsize = nread / 2;
 
     /* Convert the interleaved buffer into 2 buffers */
     for (int32_t i = 0; i < recsize; i++) {
