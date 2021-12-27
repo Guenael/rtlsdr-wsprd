@@ -32,7 +32,7 @@ echo "== Install rtlsdr-wsprd"
 git clone https://github.com/Guenael/rtlsdr-wsprd
 cd rtlsdr-wsprd
 make
-make install
+sudo make install
 
 echo "== Start/test rtlsdr-wsprd"
 rtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29
