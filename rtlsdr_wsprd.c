@@ -43,17 +43,17 @@
 #define FIR_TAPS            32
 
 
-#define safe_cond_signal(n, m) pthread_mutex_lock(m); pthread_cond_signal(n); pthread_mutex_unlock(m)
-#define safe_cond_wait(n, m) pthread_mutex_lock(m); pthread_cond_wait(n, m); pthread_mutex_unlock(m)
-
-
 /* Debugging logs */
 #define LOG_DEBUG   0
 #define LOG_INFO    1
 #define LOG_WARN    2
 #define LOG_ERROR   3
-#define LOG_LEVEL   LOG_DEBUG
+#define LOG_LEVEL   LOG_ERROR
 #define LOG(level, ...)  if (level >= LOG_LEVEL) fprintf(stderr, __VA_ARGS__)
+
+
+#define safe_cond_signal(n, m) pthread_mutex_lock(m); pthread_cond_signal(n); pthread_mutex_unlock(m)
+#define safe_cond_wait(n, m) pthread_mutex_lock(m); pthread_cond_wait(n, m); pthread_mutex_unlock(m)
 
 
 /* Thread for decoding */
@@ -102,6 +102,7 @@ struct receiver_options {
     int32_t  maxloop;
     int32_t  nloop;
     int32_t  device;
+    bool     noreport;
     bool     selftest;
     bool     writefile;
     bool     readfile;
@@ -349,6 +350,7 @@ void initrx_options() {
     rx_options.selftest       = false;
     rx_options.writefile      = false;
     rx_options.readfile       = false;
+    rx_options.noreport       = false;
 }
 
 /* Default options for the decoder */
@@ -366,6 +368,11 @@ void postSpots(uint32_t n_results) {
     CURLcode res;
     char url[256];
 
+    if (rx_options.noreport) {
+        LOG(LOG_DEBUG, "Decoder thread -- Skipping the reporting\n");
+        return;
+    }
+
     /* No spot to report, stat option used */
     // "Table 'wsprnet_db.activity' doesn't exist" reported on web site...
     // Anyone has doc about this?
@@ -379,7 +386,7 @@ void postSpots(uint32_t n_results) {
                  0,
                  wsprnet_app_version);
 
-        LOG(LOG_DEBUG, "Sending empty report using this URL: %s\n", url);
+        LOG(LOG_DEBUG, "Decoder thread -- Sending empty report using this URL: %s\n", url);
         curl = curl_easy_init();
         if (curl) {
             curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -412,7 +419,7 @@ void postSpots(uint32_t n_results) {
                  dec_results[i].pwr,
                  wsprnet_app_version);
 
-        LOG(LOG_DEBUG, "Sending spot using this URL: %s\n", url);
+        LOG(LOG_DEBUG, "Decoder thread -- Sending spot using this URL: %s\n", url);
         curl = curl_easy_init();
         if (curl) {
             curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -796,6 +803,7 @@ void usage(FILE *stream, int32_t status) {
             "\t-H use the hash table (could caught signal 11 on RPi, no parameter)\n"
             "\t-Q quick mode, doesn't dig deep for weak signals, no parameter\n"
             "\t-S single pass mode, no subtraction (same as original wsprd), no parameter\n"
+            "\t-x do not report any spots on web clusters (WSPRnet, PSKreporter...)\n"
             "Debugging options:\n"
             "\t-t decoder self-test (generate a signal & decode), no parameter\n"
             "\t-w write received signal and exit [filename prefix]\n"
@@ -812,7 +820,7 @@ void usage(FILE *stream, int32_t status) {
 
 int main(int argc, char **argv) {
     uint32_t opt;
-    char    *short_options = "f:c:l:g:ao:p:u:d:n:i:tw:r:HQS";
+    char    *short_options = "f:c:l:g:ao:p:u:d:n:i:tw:r:HQSx";
     int32_t  option_index = 0;
     struct option long_options[] = {
         {"help",    no_argument, 0, 0 },
@@ -950,6 +958,9 @@ int main(int argc, char **argv) {
             case 'S':  // Decoder option, single pass mode (same as original wsprd)
                 dec_options.subtraction = 0;
                 dec_options.npasses = 1;
+                break;
+            case 'x':  // Decoder option, single pass mode (same as original wsprd)
+                rx_options.noreport = true;
                 break;
             case 't':  // Seft test (used in unit-test CI pipeline)
                 rx_options.selftest = true;
@@ -1153,9 +1164,9 @@ int main(int argc, char **argv) {
         sec   = lTime.tv_sec % 120;
         usec  = sec * 1000000 + lTime.tv_usec;
         uwait = 120000000 - usec;
-        LOG(LOG_DEBUG, "Main thread waiting %d seconds\n", uwait/1000000);
+        LOG(LOG_DEBUG, "Main thread -- Waiting %d seconds\n", uwait/1000000);
         usleep(uwait);
-        LOG(LOG_DEBUG, "Main thread will a signal to the decoder thread\n");
+        LOG(LOG_DEBUG, "Main thread -- Sending a GO to the decoder thread\n");
 
         /* Switch to the other buffer and trigger the decoder */
         rx_state.bufferIndex = (rx_state.bufferIndex + 1) % 2;
