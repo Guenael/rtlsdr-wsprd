@@ -8,7 +8,7 @@ LIBS = -lusb-1.0 -lrtlsdr -lpthread -lfftw3f -lcurl -lm
 
 OBJS = rtlsdr_wsprd.o wsprd/wsprd.o wsprd/wsprsim_utils.o wsprd/wsprd_utils.o wsprd/tab.o wsprd/fano.o wsprd/nhash.o
 
-TARGETS = rtlsdr_wsprd
+TARGETS = rtlsdr_wsprd rtlsdr_wsprd.1
 
 .PHONY: all clean
 
@@ -25,3 +25,6 @@ clean:
 
 install:
 	install rtlsdr_wsprd /usr/local/bin/rtlsdr_wsprd
+
+%.1: %.c | %
+	-help2man --no-info --output=$@ ./$|

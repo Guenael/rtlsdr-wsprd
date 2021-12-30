@@ -46,4 +46,4 @@ int32_t readC2file(float *iSamples, float *qSamples, char *filename);
 void decodeRecordedFile(char *filename);
 float whiteGaussianNoise(float factor);
 int32_t decoderSelfTest();
-void usage(void);
+void usage(FILE *stream, int32_t status);

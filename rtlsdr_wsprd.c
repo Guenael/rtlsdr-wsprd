@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <getopt.h>
 #include <math.h>
 #include <string.h>
 #include <sys/time.h>
@@ -751,8 +752,8 @@ int32_t decoderSelfTest() {
 }
 
 
-void usage(void) {
-    fprintf(stderr,
+void usage(FILE *stream, int32_t status) {
+    fprintf(stream,
             "rtlsdr_wsprd, a simple WSPR daemon for RTL receivers\n\n"
             "Use:\trtlsdr_wsprd -f frequency -c callsign -l locator [options]\n"
             "\t-f dial frequency [(,k,M) Hz] or band string\n"
@@ -778,14 +779,24 @@ void usage(void) {
             "\t-w write received signal and exit [filename prefix]\n"
             "\t-r read signal with .iq or .c2 format, decode and exit [filename]\n"
             "\t   (raw format: 375sps, float 32 bits, 2 channels)\n"
+            "Other options:\n"
+            "\t--help show list of options\n"
+            "\t--version show version of program\n"
             "Example:\n"
             "\trtlsdr_wsprd -f 2m -c A1XYZ -l AB12cd -g 29 -o -4200\n");
-    exit(1);
+    exit(status);
 }
 
 
 int main(int argc, char **argv) {
     uint32_t opt;
+    char    *short_options = "f:c:l:g:ao:p:u:d:n:i:tw:r:HQS";
+    int32_t  option_index = 0;
+    struct option long_options[] = {
+        {"help",    no_argument, 0, 0 },
+        {"version", no_argument, 0, 0 },
+        {0, 0, 0, 0 }
+    };
 
     int32_t rtl_result;
     int32_t rtl_count;
@@ -795,10 +806,20 @@ int main(int argc, char **argv) {
     initDecoder_options();
 
     if (argc <= 1)
-        usage();
+        usage(stderr, 1);
 
-    while ((opt = getopt(argc, argv, "f:c:l:g:ao:p:u:d:n:i:tw:r:HQS")) != -1) {
+    while ((opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1) {
         switch (opt) {
+            case 0:
+                switch (option_index) {
+                    case 0:  // --help
+                        usage(stdout, 0);
+                        break;
+                    case 1:  // --version
+                        printf("rtlsdr_wsprd 0.5.3\n");
+                        exit(0);
+                        break;
+                }
             case 'f':  // Frequency
                 if (!strcasecmp(optarg, "LF")) {
                     rx_options.dialfreq = 136000;
@@ -920,7 +941,7 @@ int main(int argc, char **argv) {
                 rx_options.filename = optarg;
                 break;
             default:
-                usage();
+                usage(stderr, 1);
                 break;
         }
     }
