@@ -90,6 +90,7 @@ struct receiver_options {
     int32_t  upconverter;
     int32_t  directsampling;
     int32_t  maxloop;
+    int32_t  nloop;
     int32_t  device;
     bool     selftest;
     bool     writefile;
@@ -255,8 +256,11 @@ static void *decoder(void *arg) {
         /* Select the previous transmission / other buffer */
         uint32_t prevBuffer = (rx_state.bufferIndex + 1) % 2;
 
-        if (rx_state.iqIndex[prevBuffer] < ( (SIGNAL_LENGHT - 3) * SIGNAL_SAMPLE_RATE ) )
+        if (rx_state.iqIndex[prevBuffer] < ( (SIGNAL_LENGHT - 3) * SIGNAL_SAMPLE_RATE ) ) {
             continue;  /* Partial buffer during the first RX, skip it! */
+        } else {
+            rx_options.nloop++; /* Decoding this signal, count it! */
+        }
 
         /* Delete any previous samples tail */
         for (int i = rx_state.iqIndex[prevBuffer]; i < SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE; i++) {
@@ -309,6 +313,7 @@ void initSampleStorage() {
     rx_state.bufferIndex = 0;
     rx_state.iqIndex[0]  = 0;
     rx_state.iqIndex[1]  = 0;
+    rx_state.exit_flag   = false;
 }
 
 
@@ -320,12 +325,12 @@ void initrx_options() {
     rx_options.shift          = 0;
     rx_options.directsampling = 0;
     rx_options.maxloop        = 0;
+    rx_options.nloop          = 0;
     rx_options.device         = 0;
     rx_options.selftest       = false;
     rx_options.writefile      = false;
     rx_options.readfile       = false;
 }
-
 
 /* Default options for the decoder */
 void initDecoder_options() {
@@ -789,10 +794,6 @@ int main(int argc, char **argv) {
     initrx_options();
     initDecoder_options();
 
-    /* Stop condition setup */
-    rx_state.exit_flag   = false;
-    uint32_t nLoop = 0;
-
     if (argc <= 1)
         usage();
 
@@ -1103,7 +1104,7 @@ int main(int argc, char **argv) {
     pthread_create(&decState.thread, &decState.tattr, decoder, NULL);
 
     /* Main loop : Wait, read, decode */
-    while (!rx_state.exit_flag && !(rx_options.maxloop && (nLoop >= rx_options.maxloop))) {
+    while (!rx_state.exit_flag && !(rx_options.maxloop && (rx_options.nloop >= rx_options.maxloop))) {
         /* Wait for time Sync on 2 mins */
         gettimeofday(&lTime, NULL);
         sec   = lTime.tv_sec % 120;
@@ -1115,18 +1116,18 @@ int main(int argc, char **argv) {
         rx_state.bufferIndex = (rx_state.bufferIndex + 1) % 2;
         rx_state.iqIndex[rx_state.bufferIndex] = 0;
         safe_cond_signal(&decState.ready_cond, &decState.ready_mutex);
-
-        nLoop++;
+        usleep(100000); /* Give a chance to the other thread to update the nloop counter */
     }
+
+    /* Stop the decoder thread */
+    rx_state.exit_flag = true;
+    safe_cond_signal(&decState.ready_cond, &decState.ready_mutex);
 
     /* Stop the RX and free the blocking function */
     rtlsdr_cancel_async(rtl_device);
-
-    /* Close the RTL device */
     rtlsdr_close(rtl_device);
 
     /* Wait the thread join (send a signal before to terminate the job) */
-    safe_cond_signal(&decState.ready_cond, &decState.ready_mutex);
     pthread_join(decState.thread, NULL);
     pthread_join(dongle, NULL);
 
