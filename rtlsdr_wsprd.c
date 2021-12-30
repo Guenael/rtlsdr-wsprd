@@ -33,10 +33,6 @@
 #include "./wsprd/wsprsim_utils.h"
 
 
-#define safe_cond_signal(n, m) pthread_mutex_lock(m); pthread_cond_signal(n); pthread_mutex_unlock(m)
-#define safe_cond_wait(n, m) pthread_mutex_lock(m); pthread_cond_wait(n, m); pthread_mutex_unlock(m)
-
-
 /* Sampling definition for RTL devices & WSPR protocol */
 #define SIGNAL_LENGHT       120
 #define SIGNAL_SAMPLE_RATE  375
@@ -45,6 +41,19 @@
 #define DOWNSAMPLING        SAMPLING_RATE / SIGNAL_SAMPLE_RATE
 #define DEFAULT_BUF_LENGTH  (4 * 16384)
 #define FIR_TAPS            32
+
+
+#define safe_cond_signal(n, m) pthread_mutex_lock(m); pthread_cond_signal(n); pthread_mutex_unlock(m)
+#define safe_cond_wait(n, m) pthread_mutex_lock(m); pthread_cond_wait(n, m); pthread_mutex_unlock(m)
+
+
+/* Debugging logs */
+#define LOG_DEBUG   0
+#define LOG_INFO    1
+#define LOG_WARN    2
+#define LOG_ERROR   3
+#define LOG_LEVEL   LOG_DEBUG
+#define LOG(level, ...)  if (level >= LOG_LEVEL) fprintf(stderr, __VA_ARGS__)
 
 
 /* Thread for decoding */
@@ -105,6 +114,11 @@ struct receiver_state   rx_state;
 struct receiver_options rx_options;
 struct decoder_options  dec_options;
 struct decoder_results  dec_results[50];
+
+
+/* Could be nice to update this one with the CI */
+const char rtlsdr_wsprd_version[] = "0.5.4";
+const char wsprnet_app_version[]  = "rtlsdr-054";  // 10 chars max.!
 
 
 /* Callback for each buffer received */
@@ -251,6 +265,8 @@ static void *decoder(void *arg) {
     while (!rx_state.exit_flag) {
         safe_cond_wait(&decState.ready_cond, &decState.ready_mutex);
 
+        LOG(LOG_DEBUG, "Decoder thread -- Got a signal!\n");
+
         if (rx_state.exit_flag)
             break;  /* Abort case, final sig */
 
@@ -258,6 +274,7 @@ static void *decoder(void *arg) {
         uint32_t prevBuffer = (rx_state.bufferIndex + 1) % 2;
 
         if (rx_state.iqIndex[prevBuffer] < ( (SIGNAL_LENGHT - 3) * SIGNAL_SAMPLE_RATE ) ) {
+            LOG(LOG_DEBUG, "Decoder thread -- Signal too short, skipping!\n");
             continue;  /* Partial buffer during the first RX, skip it! */
         } else {
             rx_options.nloop++; /* Decoding this signal, count it! */
@@ -301,6 +318,7 @@ static void *decoder(void *arg) {
                     dec_options,
                     dec_results,
                     &n_results);
+        LOG(LOG_DEBUG, "Decoder thread -- Decoding completed\n");
         saveSample(rx_state.iSamples[prevBuffer], rx_state.qSamples[prevBuffer]);
         postSpots(n_results);
         printSpots(n_results);
@@ -352,14 +370,16 @@ void postSpots(uint32_t n_results) {
     // "Table 'wsprnet_db.activity' doesn't exist" reported on web site...
     // Anyone has doc about this?
     if (n_results == 0) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=rtlsdr-053&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=%s&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  rx_options.dialfreq / 1e6,
                  0.0f,
                  rx_options.dialfreq / 1e6,
-                 0);
+                 0,
+                 wsprnet_app_version);
 
+        LOG(LOG_DEBUG, "Sending empty report using this URL: %s\n", url);
         curl = curl_easy_init();
         if (curl) {
             curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -375,7 +395,7 @@ void postSpots(uint32_t n_results) {
     }
 
     for (uint32_t i = 0; i < n_results; i++) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=rtlsdr-053&mode=2",
+        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=%s&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  dec_results[i].freq,
@@ -389,8 +409,10 @@ void postSpots(uint32_t n_results) {
                  dec_results[i].freq,
                  dec_results[i].call,
                  dec_results[i].loc,
-                 dec_results[i].pwr);
+                 dec_results[i].pwr,
+                 wsprnet_app_version);
 
+        LOG(LOG_DEBUG, "Sending spot using this URL: %s\n", url);
         curl = curl_easy_init();
         if (curl) {
             curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -813,11 +835,11 @@ int main(int argc, char **argv) {
             case 0:
                 switch (option_index) {
                     case 0:  // --help
-                        usage(stdout, 0);
+                        usage(stdout, EXIT_SUCCESS);
                         break;
                     case 1:  // --version
-                        printf("rtlsdr_wsprd 0.5.3\n");
-                        exit(0);
+                        printf("rtlsdr_wsprd v%s\n", rtlsdr_wsprd_version);
+                        exit(EXIT_FAILURE);
                         break;
                 }
             case 'f':  // Frequency
@@ -941,7 +963,7 @@ int main(int argc, char **argv) {
                 rx_options.filename = optarg;
                 break;
             default:
-                usage(stderr, 1);
+                usage(stderr, EXIT_FAILURE);
                 break;
         }
     }
@@ -1088,8 +1110,8 @@ int main(int argc, char **argv) {
     struct tm *gtm = gmtime(&rawtime);
 
     /* Print used parameter */
-    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version 0.5.3\n",
-           gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min);
+    printf("\nStarting rtlsdr-wsprd (%04d-%02d-%02d, %02d:%02dz) -- Version %s\n",
+           gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday, gtm->tm_hour, gtm->tm_min, rtlsdr_wsprd_version);
     printf("  Callsign     : %s\n",    dec_options.rcall);
     printf("  Locator      : %s\n",    dec_options.rloc);
     printf("  Dial freq.   : %d Hz\n", rx_options.dialfreq);
@@ -1131,7 +1153,9 @@ int main(int argc, char **argv) {
         sec   = lTime.tv_sec % 120;
         usec  = sec * 1000000 + lTime.tv_usec;
         uwait = 120000000 - usec;
+        LOG(LOG_DEBUG, "Main thread waiting %d seconds\n", uwait/1000000);
         usleep(uwait);
+        LOG(LOG_DEBUG, "Main thread will a signal to the decoder thread\n");
 
         /* Switch to the other buffer and trigger the decoder */
         rx_state.bufferIndex = (rx_state.bufferIndex + 1) % 2;
