@@ -26,6 +26,8 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <rtl-sdr.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #include <curl/curl.h>
 
 #include "./rtlsdr_wsprd.h"
@@ -118,8 +120,9 @@ struct decoder_results  dec_results[50];
 
 
 /* Could be nice to update this one with the CI */
-const char rtlsdr_wsprd_version[] = "0.5.4";
-const char wsprnet_app_version[]  = "rtlsdr-054";  // 10 chars max.!
+const char rtlsdr_wsprd_version[]    = "0.5.5";
+const char wsprnet_app_version[]     = "rtlsdr-055";  // 10 chars max.!
+const char pskreporter_app_version[] = "rtlsdr-wsprd_v0.5.5";
 
 
 /* Callback for each buffer received */
@@ -321,7 +324,8 @@ static void *decoder(void *arg) {
                     &n_results);
         LOG(LOG_DEBUG, "Decoder thread -- Decoding completed\n");
         saveSample(rx_state.iSamples[prevBuffer], rx_state.qSamples[prevBuffer]);
-        postSpots(n_results);
+        postPskReporter(n_results);
+        postWsprNet(n_results);
         printSpots(n_results);
     }
     return NULL;
@@ -363,7 +367,7 @@ void initDecoder_options() {
 
 
 /* Report on WSPRnet */
-void postSpots(uint32_t n_results) {
+void postWsprNet(uint32_t n_results) {
     CURL *curl;
     CURLcode res;
     char url[256];
@@ -432,6 +436,251 @@ void postSpots(uint32_t n_results) {
             curl_easy_cleanup(curl);
         }
     }
+}
+
+
+inline uint16_t SwapEndian16(uint16_t val) {
+    return (val<<8) | (val>>8);
+}
+
+
+inline uint32_t SwapEndian32(uint32_t val) {
+    return (val<<24) | ((val<<8) & 0x00ff0000) | ((val>>8) & 0x0000ff00) | (val>>24);
+}
+
+
+/* PSKreporter protocol documentation & links:
+ *   https://pskreporter.info/pskdev.html
+ *   https://pskreporter.info/cgi-bin/psk-analysis.pl
+ *   https://pskreporter.info/pskmap.html
+ */
+void postPskReporter(uint32_t n_results) {
+    if (rx_options.noreport) {
+        LOG(LOG_DEBUG, "Decoder thread -- Skipping the reporting\n");
+        return;
+    }
+
+    if (n_results == 0) {
+        return;
+    }
+
+    /* Send the block using UDP to this server */
+    const char hostname[] = "report.pskreporter.info";
+    const char service[]  = "4739";
+
+    /* Fixed strings for Mode */
+    const char txMode[]   = "WSPR";
+
+    /* Frame description */
+    const unsigned char rxDescriptor[] = {
+        0x00, 0x03,              // Template Set ID
+        0x00, 0x24,              // Length
+        0x99, 0x92,              // Link ID
+        0x00, 0x03,              // Field Count
+        0x00, 0x00,              // Scope Field Count
+        0x80, 0x02,              // Receiver Callsign ID
+        0xFF, 0xFF,              // Variable field length
+        0x00, 0x00, 0x76, 0x8F,  // Enterprise number
+        0x80, 0x04,              // Receiver Locator ID
+        0xFF, 0xFF,              // Variable field length
+        0x00, 0x00, 0x76, 0x8F,  // Enterprise number
+        0x80, 0x08,              // Receiver Decoder Software ID
+        0xFF, 0xFF,              // Variable field length
+        0x00, 0x00, 0x76, 0x8F,  // Enterprise number
+        0x00, 0x00               // Padding
+    };
+
+    const unsigned char txDescriptor[] = {
+        0x00, 0x02,              // Template Set ID
+        0x00, 0x3C,              // Length
+        0x99, 0x93,              // Link ID
+        0x00, 0x07,              // Field Count
+        0x80, 0x01,              // Sender Callsign ID
+        0xFF, 0xFF,              // Variable field length
+        0x00, 0x00, 0x76, 0x8F,  // Enterprise number
+        0x80, 0x05,              // Sender Frequency ID
+        0x00, 0x04,              // Fixed length (4)
+        0x00, 0x00, 0x76, 0x8F,  // Enterprise number
+        0x80, 0x06,              // Sender SNR ID
+        0x00, 0x01,              // Fixed length (1)
+        0x00, 0x00, 0x76, 0x8F,  // Enterprise number
+        0x80, 0x0A,              // Sender Mode ID
+        0xFF, 0xFF,              // Variable field length
+        0x00, 0x00, 0x76, 0x8F,  // Enterprise number
+        0x80, 0x03,              // Sender Locator ID
+        0xFF, 0xFF,              // Variable field length
+        0x00, 0x00, 0x76, 0x8F,  // Enterprise number
+        0x80, 0x0B,              // Information Source ID
+        0x00, 0x01,              // Fixed length (1)
+        0x00, 0x00, 0x76, 0x8F,  // Enterprise number
+        0x00, 0x96,              // DateTimeSeconds ID
+        0x00, 0x04               // Field Length
+    };
+
+    uint32_t sequenceNumber = 1;
+
+    time_t unixtime;
+    time( &unixtime );
+
+    /* Pick a random number */
+    static uint32_t randomId;
+    if (!randomId) {
+        srand( (unsigned)unixtime);
+        randomId = rand();
+    }
+
+    /* Construct header block */
+    const uint32_t headerSize     = 16;
+    char headerData[headerSize];
+    uint32_t hPtr = 0;
+    *(uint16_t *)&headerData[hPtr] = SwapEndian16(0x000A);
+    hPtr += 2;
+    hPtr += 2;  // Skip the size block, adjust later
+    *(uint32_t *)&headerData[hPtr] = SwapEndian32(unixtime);
+    hPtr += 4;
+    *(uint32_t *)&headerData[hPtr] = SwapEndian32(sequenceNumber);
+    hPtr += 4;
+    *(uint32_t *)&headerData[hPtr] = SwapEndian32(randomId);
+    hPtr += 4;
+
+
+    /* Receiver information block */
+    char rxInfoData[256] = {0};  // UPDATE: possible buffer overflow issue. TESTING for now!
+    uint32_t rxPtr = 0;
+
+    /* Header & length */
+    *(uint16_t *)&rxInfoData[rxPtr] = SwapEndian16(0x9992);
+    rxPtr += 2;
+    rxPtr += 2;  // Skip the size block, adjust later
+
+    /* Receiver Callsign */
+    *(uint8_t  *)&rxInfoData[rxPtr] = (uint8_t)strlen(dec_options.rcall);
+    rxPtr += 1;
+    strncpy((char *)&rxInfoData[rxPtr], dec_options.rcall, strlen(dec_options.rcall));
+    rxPtr += strlen(dec_options.rcall);
+
+    /* Receiver Locator */
+    *(uint8_t  *)&rxInfoData[rxPtr] = (uint8_t)strlen(dec_options.rloc);
+    rxPtr += 1;
+    strncpy((char *)&rxInfoData[rxPtr], dec_options.rloc, strlen(dec_options.rloc));
+    rxPtr += strlen(dec_options.rloc);
+
+    /* Application used by RX */
+    *(uint8_t  *)&rxInfoData[rxPtr] = (uint8_t)strlen(pskreporter_app_version);
+    rxPtr += 1;
+    strncpy((char *)&rxInfoData[rxPtr], pskreporter_app_version, strlen(pskreporter_app_version));
+    rxPtr += strlen(pskreporter_app_version);
+
+    /* Padding */
+    if ((rxPtr % 4) > 0)
+        rxPtr += (4 - (rxPtr % 4));
+
+
+    /* Spotted station information block */
+    char txInfoData[1500] = {0};
+    uint32_t txPtr = 0;
+
+    /* Header & length */
+    *(uint16_t *)&txInfoData[txPtr] = SwapEndian16(0x9993);
+    txPtr += 2;
+    txPtr += 2;  // Skip the size block, adjust later
+
+    for (uint32_t i = 0; i < n_results; i++) {
+        /* Maximum frame size allowed is 1500 bytes, skip other spots */
+        // >>> RE-WORK this part !! + Delay + stack accumulator
+        if (txPtr > 1200)
+            break;
+
+        /* Station Callsign */
+        *(uint8_t  *)&txInfoData[txPtr] = (uint8_t)strlen(dec_results[i].call);
+        txPtr += 1;
+        strncpy((char *)&txInfoData[txPtr], dec_results[i].call, strlen(dec_results[i].call));
+        txPtr += strlen(dec_results[i].call);
+
+        /* Station Frequency -- Static length (4) */
+        *(uint32_t *)&txInfoData[txPtr]  = SwapEndian32(dec_results[i].freq + dec_options.freq);
+        txPtr += 4;
+
+        /* Station SNR  -- Static length (1) */
+        *(int8_t  *)&txInfoData[txPtr] = (int8_t)dec_results[i].snr;
+        txPtr += 1;
+
+        /* Station Mode */
+        *(uint8_t  *)&txInfoData[txPtr] = (uint8_t)strlen(txMode);
+        txPtr += 1;
+        strncpy((char *)&txInfoData[txPtr], txMode, strlen(txMode));
+        txPtr += strlen(txMode);
+
+        /* Station Locator */
+        *(uint8_t  *)&txInfoData[txPtr] = (uint8_t)strlen(dec_results[i].loc);
+        txPtr += 1;
+        strncpy((char *)&txInfoData[txPtr], dec_results[i].loc, strlen(dec_results[i].loc));
+        txPtr += strlen(dec_results[i].loc);
+
+        /* Station Info -- Static length (1) */
+        *(uint8_t  *)&txInfoData[txPtr] = (uint8_t)1;
+        txPtr += 1;
+
+        /* Station Time -- Static length (4) */
+        *(uint32_t *)&txInfoData[txPtr] = SwapEndian32(unixtime); // UPDATE - 15sec
+        txPtr += 4;
+    }
+
+    /* Padding */
+    if ((txPtr % 4) > 0)
+        txPtr += (4 - (txPtr % 4));
+
+
+    /* Adjust the block sizes */
+    uint32_t fullBlockSize  = headerSize + sizeof(rxDescriptor) + sizeof(txDescriptor) + rxPtr + txPtr;
+    *(uint16_t *)&rxInfoData[2] = SwapEndian16(rxPtr);
+    *(uint16_t *)&txInfoData[2] = SwapEndian16(txPtr); 
+    *(uint16_t *)&headerData[2] = SwapEndian16(fullBlockSize);
+
+    /* Assemble the block to send over UDP */
+    char fullBlockData[fullBlockSize];
+    uint32_t ptrBlock = 0;
+    memcpy(&fullBlockData[ptrBlock], headerData,   headerSize);           ptrBlock += headerSize;
+    memcpy(&fullBlockData[ptrBlock], rxDescriptor, sizeof(rxDescriptor)); ptrBlock += sizeof(rxDescriptor);
+    memcpy(&fullBlockData[ptrBlock], txDescriptor, sizeof(txDescriptor)); ptrBlock += sizeof(txDescriptor);
+    memcpy(&fullBlockData[ptrBlock], rxInfoData,   rxPtr);                ptrBlock += rxPtr;
+    memcpy(&fullBlockData[ptrBlock], txInfoData,   txPtr);                ptrBlock += txPtr;
+
+    /* Network stuff */
+    int sockfd;
+    struct addrinfo hints;
+    struct addrinfo *rp, *res;
+
+    bzero(&hints, sizeof(hints));
+    hints.ai_family   = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+
+    if (getaddrinfo(hostname, service, &hints, &rp)) {
+        fprintf(stderr, "Could not resolve the pskreporter...\n");
+        return;
+    }
+
+    for (rp = res; rp != NULL; rp = rp->ai_next) {
+        sockfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sockfd == -1)
+            continue;
+        if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) != -1)
+            break;
+        close(sockfd);
+    }
+
+    if (rp == NULL) {
+        fprintf(stderr, "Could not connect to pskreporter...\n");
+        return;
+    }
+
+    freeaddrinfo(rp);
+
+    if (send(sockfd, fullBlockData, fullBlockSize, 0) != fullBlockSize) {
+        fprintf(stderr, "partial/failed write to UDP socket!\n");
+        return;
+    }
+    close(sockfd);
 }
 
 
