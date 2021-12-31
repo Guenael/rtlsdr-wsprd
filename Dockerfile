@@ -12,8 +12,7 @@ RUN apt-get update && \
     libfftw3-dev \
     libusb-1.0-0-dev \
     pkg-config \
-    unzip \
-    help2man && \
+    unzip && \
   rm -rf /var/lib/apt/lists/*
 
 ADD https://github.com/steve-m/librtlsdr/archive/master.zip /root/librtlsdr-master.zip
