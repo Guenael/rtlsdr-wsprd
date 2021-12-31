@@ -34,8 +34,8 @@ jobs:
 
     - name: Install dependencies and build
       run: |
-        sudo apt-get -y update
-        sudo apt-get -y install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev cppcheck iwyu
+        sudo apt-get update
+        sudo apt-get -y --no-install-recommends install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev cppcheck help2man
         make
 
     - name: Perform CodeQL Analysis (SAST)

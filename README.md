@@ -16,7 +16,7 @@ To install and use your dongle on a Raspberry Pi with a Raspberry Pi OS, follow 
 
 ```bash
 echo "== Install dependencies"
-sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev libcurl4-gnutls-dev ntp git
+sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev libcurl4-gnutls-dev help2man ntp git
 
 echo "== Install rtl-sdr library (on RPi, don't use your distro package)"
 git clone https://github.com/osmocom/rtl-sdr
@@ -64,7 +64,7 @@ This application written in C does:
 
   3. Install dependencies & useful tools (for example, [NTP](https://en.wikipedia.org/wiki/Network_Time_Protocol) for time synchronization). Example with a Debian based OS, like Rasbian, or Raspberry Pi OS:
      ```bash
-     sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev libcurl4-gnutls-dev ntp git
+     sudo apt-get update && sudo apt-get -y install build-essential clang cmake libfftw3-dev libusb-1.0-0-dev libcurl4-gnutls-dev help2man ntp git
      ```
 
   4. Install `rtl-sdr` library manually. **Do not use the `librtlsdr-dev` package on Raspberry PiOS**. There is a know bug with this lib and rtlsdr_wsprd will not be able to get enough samples (don't decode anything & 100% CPU pattern).

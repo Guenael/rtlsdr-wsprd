@@ -836,7 +836,7 @@ int main(int argc, char **argv) {
     initDecoder_options();
 
     if (argc <= 1)
-        usage(stderr, 1);
+        usage(stdout, EXIT_SUCCESS);
 
     while ((opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1) {
         switch (opt) {

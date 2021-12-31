@@ -2,6 +2,7 @@
 *.o
 *.a
 *.iq
+*.c2
 rtlsdr_wsprd
 fftw_wisdom.dat
 hashtable.txt
