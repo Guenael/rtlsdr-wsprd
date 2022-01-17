@@ -813,7 +813,7 @@ int main(int argc, char **argv) {
                     if (!rx_options.directsampling)
                         rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "80m")) {
-                    rx_options.dialfreq = 3592600;
+                    rx_options.dialfreq = 3568600;
                     if (!rx_options.directsampling)
                         rx_options.directsampling = 2;
                 } else if (!strcasecmp(optarg, "60m")) {
