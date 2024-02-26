@@ -448,13 +448,12 @@ void printSpots(uint32_t n_results) {
     }
 
     for (uint32_t i = 0; i < n_results; i++) {
-        printf("Spot :  %04d-%02d-%02d %02d:%02d:%02d %6.2f %6.2f %10.6f %2d %7s %6s %2s\n",
+        printf("Spot :  %04d-%02d-%02d %02d:%02dz %6.2f %6.2f %10.6f %2d %7s %6s %2s\n",
                rx_state.gtm->tm_year + 1900,
                rx_state.gtm->tm_mon + 1,
                rx_state.gtm->tm_mday,
                rx_state.gtm->tm_hour,
                rx_state.gtm->tm_min,
-               rx_state.gtm->tm_sec,
                dec_results[i].snr,
                dec_results[i].dt,
                dec_results[i].freq,
@@ -1139,7 +1138,7 @@ int main(int argc, char **argv) {
     uint32_t usec  = sec * 1000000 + lTime.tv_usec;
     uint32_t uwait = 120000000 - usec;
     printf("Wait for time sync (start in %d sec)\n\n", uwait / 1000000);
-    printf("              Date  Time(z)    SNR     DT       Freq Dr    Call    Loc Pwr\n");
+    printf("              Date   Time    SNR     DT       Freq Dr    Call    Loc Pwr\n");
 
     /* Prepare a low priority param for the decoder thread */
     struct sched_param param;
