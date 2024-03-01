@@ -263,7 +263,7 @@ int unpk_(signed char *message, char *hashtab, char *loctab, char *call_loc_pow,
         if (nu == 0 || nu == 3 || nu == 7) {
             ndbm = ntype;
             memset(call_loc_pow, 0, sizeof(char) * 23);
-            sprintf(cdbm, "%2d", ndbm);
+            sprintf(cdbm, "%02d", ndbm);
             strncat(call_loc_pow, callsign, strlen(callsign));
             strncat(call_loc_pow, " ", 1);
             strncat(call_loc_pow, grid, 4);
