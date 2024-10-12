@@ -78,8 +78,8 @@ This application written in C does:
      sudo make install
      cd ../..
      ```
-  Note: You may have to re-plug you dongle if it was already connected, or play with `udev` if not automatically detected.
-
+  Note: You may have to re-plug you dongle if it was already connected, or play with `udev` if not automatically detected. For example, you can apply `sudo udevadm control --reload-rules` to force a re-scan. If you still have some issues, check this page: [SDR udev rules](https://github.com/jopohl/urh/wiki/SDR-udev-rules).
+  
   5. Clone this repository:
      ```bash
      git clone https://github.com/Guenael/rtlsdr-wsprd
