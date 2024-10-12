@@ -23,7 +23,7 @@ git clone https://github.com/osmocom/rtl-sdr
 cd rtl-sdr
 mkdir -p make
 cd make
-cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr -DDETACH_KERNEL_DRIVER=ON -Wno-dev ..
+cmake -DCMAKE_INSTALL_PREFIX:PATH=/usr -DINSTALL_UDEV_RULES=ON -DENABLE_ZEROCOPY=ON -DDETACH_KERNEL_DRIVER=ON -Wno-dev ..
 make
 sudo make install
 cd ../..
