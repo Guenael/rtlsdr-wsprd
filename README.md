@@ -6,8 +6,6 @@
 ![Workflow Status](https://img.shields.io/github/workflow/status/Guenael/rtlsdr-wsprd/CI)
 ![Last commit](https://img.shields.io/github/last-commit/Guenael/rtlsdr-wsprd)
 ![Commit activity](https://img.shields.io/github/commit-activity/m/Guenael/rtlsdr-wsprd)
-![LGTM Alerts](https://img.shields.io/lgtm/alerts/github/Guenael/rtlsdr-wsprd)
-![LGTM Grade](https://img.shields.io/lgtm/grade/cpp/github/Guenael/rtlsdr-wsprd)
 
 ## TL;DR
 
