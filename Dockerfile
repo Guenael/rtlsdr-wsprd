@@ -1,7 +1,7 @@
 # -------------------
 # The build container
 # -------------------
-FROM debian:bullseye-slim AS build
+FROM debian:bookworm-slim AS build
 
 RUN apt-get update && \
   apt-get -y --no-install-recommends install \
@@ -35,7 +35,7 @@ RUN cd /root/rtlsdr-wsprd && \
 # -------------------------
 # The application container
 # -------------------------
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 RUN apt-get update && \
   apt-get -y --no-install-recommends install \
