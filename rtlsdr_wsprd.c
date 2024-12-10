@@ -948,7 +948,7 @@ int main(int argc, char **argv) {
             case 'i':  // Select the device to use
                 rx_options.device = (uint32_t)atofs(optarg);
                 break;
-            case 'H':  // Decoder option, use a hastable
+            case 'H':  // Decoder option, use a hashtable
                 dec_options.usehashtable = 1;
                 break;
             case 'Q':  // Decoder option, faster
