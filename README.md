@@ -3,7 +3,7 @@
 ![rtlsdr-wsprd](art/rtlsdr-wsprd-web.jpg)
 
 ![Project Status](https://img.shields.io/badge/status-OK-green)
-![Workflow Status](https://img.shields.io/github/workflow/status/Guenael/rtlsdr-wsprd/CI)
+[![CI Status](https://github.com/Guenael/rtlsdr-wsprd/actions/workflows/ci.yml/badge.svg)](https://github.com/Guenael/rtlsdr-wsprd/actions/workflows/ci.yml)
 ![Last commit](https://img.shields.io/github/last-commit/Guenael/rtlsdr-wsprd)
 ![Commit activity](https://img.shields.io/github/commit-activity/m/Guenael/rtlsdr-wsprd)
 
