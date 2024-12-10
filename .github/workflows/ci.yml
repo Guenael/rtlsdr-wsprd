@@ -22,43 +22,52 @@ jobs:
       matrix:
         language: [ 'cpp' ]
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
 
-    # Initializes the CodeQL tools for scanning.
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v1
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        cache: 'pip' # caching pip dependencies
+
+    steps:
+    - name: "Checkout repository"
+      uses: actions/checkout@v4
+
+    - name: "Python setup"
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: "CodeQL Init"
+      uses: github/codeql-action/init@v2
       with:
         languages: ${{ matrix.language }}
 
-    - name: Install dependencies and build
+    - name: "Install dependencies and build"
       run: |
         sudo apt-get update
         sudo apt-get -y --no-install-recommends install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev cppcheck
+        pip install cpplint codespell
         make
 
-    - name: Perform CodeQL Analysis (SAST)
-      uses: github/codeql-action/analyze@v1
+    - name: "CodeQL Analysis (SAST)"
+      uses: github/codeql-action/analyze@v2
 
-    - name: Cppcheck (C/C++ format & best best-practice)
+    - name: "Cppcheck (C/C++ format & best best-practice)"
       run: |
-        echo "===== CPPCHECK ====="
         cppcheck --std=c11 *.c wsprd/*.c
 
-    - name: Cpplint check (formatting & best-practice check)
+    - name: "Cpplint check (formatting & best-practice check)"
       run: |
-        pip install cpplint
-        echo "===== CPPLINT ====="
         cpplint --linelength=1000 --extensions=c --headers=h --recursive * || true
 
-    - name: Codespell check (because of my spelling...)
+    - name: "Codespell check"
       run: |
-        pip install codespell
-        echo "===== CODESPELL ====="
         codespell -L 'rcall' *.md *.c *.h wsprd/*.c wsprd/*.h .github/workflows/ci.yml
 
-    - name: Unit-Test
+    - name: "Unit-Test"
       run: |
         echo "===== Decoder self-test ====="
         ./rtlsdr_wsprd -f 2m -c A1XYZ -l AB12CD -r ./signals/refSignalSnr0dB.iq
