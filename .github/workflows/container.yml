@@ -1,4 +1,4 @@
-name: Container Images
+name: "Container Images"
 
 on:
   push:
@@ -13,31 +13,31 @@ jobs:
   main:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
+      - name: "Checkout repository"
+        uses: actions/checkout@v4
 
-      - name: Calculate Container Metadata
+      - name: "Calculate Container Metadata"
         id: meta
         uses: crazy-max/ghaction-docker-meta@v1
         with:
           images: ghcr.io/${{ github.repository }}
 
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
+      - name: "Setup QEMU"
+        uses: docker/setup-qemu-action@v3
 
-      - name: Setup Buildx
-        uses: docker/setup-buildx-action@v1
+      - name: "Setup Buildx"
+        uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+      - name: "Login to GitHub Container Registry"
+        uses: docker/login-action@v3
         if: github.event_name != 'pull_request'
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Images
-        uses: docker/build-push-action@v2
+      - name: "Build and Push Images"
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64, linux/386, linux/arm64, linux/arm/v6, linux/arm/v7
