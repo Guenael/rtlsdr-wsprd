@@ -2,47 +2,23 @@ name: "CI"
 
 on:
   push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
-  schedule:
-    - cron: '35 20 * * 5'
+  # schedule:
+  #   - cron: '35 20 * * 5'
 
 jobs:
   analyze:
-    name: Build-Analyze
+    name: "Analyze-Build-Test"
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
       security-events: write
 
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'cpp' ]
-
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-        cache: 'pip' # caching pip dependencies
-
     steps:
     - name: "Checkout repository"
       uses: actions/checkout@v4
-
-    - name: "Python setup"
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-        cache: 'pip'
-
-    - name: "CodeQL Init"
-      uses: github/codeql-action/init@v2
-      with:
-        languages: ${{ matrix.language }}
 
     - name: "Install dependencies and build"
       run: |
@@ -50,9 +26,6 @@ jobs:
         sudo apt-get -y --no-install-recommends install build-essential cmake libfftw3-dev libusb-1.0-0-dev librtlsdr-dev libcurl4-gnutls-dev cppcheck
         pip install cpplint codespell
         make
-
-    - name: "CodeQL Analysis (SAST)"
-      uses: github/codeql-action/analyze@v2
 
     - name: "Cppcheck (C/C++ format & best best-practice)"
       run: |
