@@ -9,12 +9,11 @@ LIBS = -lusb-1.0 -lrtlsdr -lpthread -lfftw3f -lcurl -lm
 ifeq ($(findstring armv6, $(shell uname -m)), armv6)
 	# Broadcom BCM2835 SoC with 700 MHz 32-bit ARM 1176JZF-S (ARMv6 arch)
 	#   Used in Raspberry Pi1 (A,A+,B,B+), Pi-Zero, Pi-Zero W, Pi-Compute-Module1
-	EXTRA_OPTS = -DRPI1
+	EXTRA_OPTS = -DRPI1 --target=arm-linux-gnueabihf -mcpu=arm1176jzf-s -mfloat-abi=hard
 endif
 ifeq ($(findstring armv7, $(shell uname -m)), armv7)
 	# Broadcom BCM2836 SoC with 900 MHz 32-bit quad-core ARM Cortex-A7 (ARMv7 arch)
     #   Used in Raspberry Pi 2 Model B
-
 	# Broadcom BCM2837 SoC with 1.2 GHz 64-bit quad-core ARM Cortex-A53 (ARMv8 arch)
     #   Used in Raspberry Pi 3 Model B +later models of the Raspberry Pi 2 Model B, 
     #   and Pi-Compute-Module3.

@@ -118,8 +118,8 @@ struct decoder_results  dec_results[50];
 
 
 /* Could be nice to update this one with the CI */
-const char rtlsdr_wsprd_version[] = "0.5.5";
-const char wsprnet_app_version[]  = "rtlsdr-055";  // 10 chars max.!
+const char rtlsdr_wsprd_version[] = "0.5.6";
+const char wsprnet_app_version[]  = "rtlsdr-056";  // 10 chars max.!
 
 
 /* Callback for each buffer received */
