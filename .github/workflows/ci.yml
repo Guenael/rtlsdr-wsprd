@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
         - language: c-cpp
-          build-mode: autobuild
+          build-mode: manual
 
     steps:
     - name: "Checkout repository"
