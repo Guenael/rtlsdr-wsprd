@@ -2,15 +2,15 @@ name: "CI"
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
-  schedule:
-    - cron: '35 20 * * 5'
+    branches:
+      - 'main'
+  # schedule:
+  #   - cron: '35 20 * * 5'
 
 jobs:
   analyze:
-    name: Build-Analyze
+    name: "Analyze-Build-Test"
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -20,14 +20,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'cpp' ]
+        include:
+        - language: c-cpp
 
     steps:
     - name: "Checkout repository"
       uses: actions/checkout@v4
 
     - name: "CodeQL Init"
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
 
@@ -39,7 +40,9 @@ jobs:
         make
 
     - name: "CodeQL Analysis (SAST)"
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
 
     - name: "Cppcheck (C/C++ format & best best-practice)"
       run: |
