@@ -185,7 +185,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
        Info: * Understanding CIC Compensation Filters
                https://www.altera.com/en_US/pdfs/literature/an/an455.pdf
              * Understanding cascaded integrator-comb filters
-               http://www.embedded.com/design/configurable-systems/4006446/Understanding-cascaded-integrator-comb-filters
+               https://www.embedded.com/design/configurable-systems/4006446/Understanding-cascaded-integrator-comb-filters
     */
     for (int32_t i = 0; i < samples_count / 2; i++) {  // UPDATE: i+=2 & fix below
         /* Integrator stages (N=2) */
@@ -377,7 +377,7 @@ void postSpots(uint32_t n_results) {
     // "Table 'wsprnet_db.activity' doesn't exist" reported on web site...
     // Anyone has doc about this?
     if (n_results == 0) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=%s&mode=2",
+        snprintf(url, sizeof(url) - 1, "https://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=%s&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  rx_options.dialfreq / 1e6,
@@ -402,7 +402,7 @@ void postSpots(uint32_t n_results) {
     }
 
     for (uint32_t i = 0; i < n_results; i++) {
-        snprintf(url, sizeof(url) - 1, "http://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=%s&mode=2",
+        snprintf(url, sizeof(url) - 1, "https://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=%s&mode=2",
                  dec_options.rcall,
                  dec_options.rloc,
                  dec_results[i].freq,
