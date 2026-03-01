@@ -24,6 +24,7 @@ RUN unzip /root/librtlsdr.zip -d /root && \
   cmake -Wno-dev ../ && \
   make && \
   make install && \
+  ldconfig && \
   rm -rf /root/librtlsdr-2.0.2
 
 COPY . /root/rtlsdr-wsprd
