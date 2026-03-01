@@ -4,5 +4,6 @@
 *.iq
 *.c2
 rtlsdr_wsprd
+tests/test_wsprd
 fftw_wisdom.dat
 hashtable.txt

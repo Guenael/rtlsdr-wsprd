@@ -25,11 +25,12 @@ ifeq ($(findstring aarch64, $(shell uname -m)), aarch64)
 endif
 
 OBJS = rtlsdr_wsprd.o wsprd/wsprd.o wsprd/wsprsim_utils.o wsprd/wsprd_utils.o wsprd/tab.o wsprd/fano.o wsprd/nhash.o
-DEPS = $(OBJS:.o=.d)
+TEST_OBJS = tests/test_wsprd.o wsprd/wsprsim_utils.o wsprd/wsprd_utils.o wsprd/tab.o wsprd/fano.o wsprd/nhash.o
+DEPS = $(OBJS:.o=.d) $(TEST_OBJS:.o=.d)
 
 TARGETS = rtlsdr_wsprd
 
-.PHONY: all clean install
+.PHONY: all clean install test
 
 all: $(TARGETS)
 
@@ -39,10 +40,17 @@ all: $(TARGETS)
 rtlsdr_wsprd: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
+tests/test_wsprd: $(TEST_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $^ -lm
+
+test: all tests/test_wsprd
+	./tests/test_wsprd
+	./tests/run_tests.sh
+
 -include $(DEPS)
 
 clean:
-	rm -f *.o wsprd/*.o *.d wsprd/*.d $(TARGETS) fftw_wisdom.dat hashtable.txt selftest.iq
+	rm -f *.o wsprd/*.o tests/*.o *.d wsprd/*.d tests/*.d $(TARGETS) tests/test_wsprd fftw_wisdom.dat hashtable.txt selftest.iq
 
 install:
 	install rtlsdr_wsprd /usr/local/bin/rtlsdr_wsprd

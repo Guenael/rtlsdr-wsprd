@@ -56,8 +56,6 @@ jobs:
       run: |
         codespell -L 'rcall' *.md *.c *.h wsprd/*.c wsprd/*.h .github/workflows/ci.yml
 
-    - name: "Unit-Test"
+    - name: "Unit-Test & Integration-Test"
       run: |
-        echo "===== Decoder self-test ====="
-        ./rtlsdr_wsprd -f 2m -c A1XYZ -l AB12CD -r ./signals/refSignalSnr0dB.iq
-        ./rtlsdr_wsprd -f 2m -c A1XYZ -l AB12CD -t
+        make test
