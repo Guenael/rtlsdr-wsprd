@@ -33,6 +33,13 @@
 
 #pragma once
 
+#define HASHTAB_SIZE       32768
+#define HASHTAB_ENTRY_LEN  13
+#define LOCTAB_ENTRY_LEN   5
+#define FFT_SIZE           512
+#define MAX_CANDIDATES     200
+#define MAX_UNIQUES        100
+
 /* Option & config of decoder (Shared with the wsprd code) */
 struct decoder_options {
     int  freq;          // Dial frequency
@@ -88,14 +95,14 @@ void subtract_signal(float *id,
                      float f0,
                      int   shift,
                      float drift,
-                     unsigned char *channel_symbols);
+                     const unsigned char *channel_symbols);
 void subtract_signal2(float *id,
                       float *qd,
                       long np,
                       float f0,
                       int shift,
                       float drift,
-                      unsigned char *channel_symbols);
+                      const unsigned char *channel_symbols);
 int wspr_decode(float  *idat, 
                 float  *qdat, 
                 int    samples,

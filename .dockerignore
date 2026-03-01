@@ -1,0 +1,12 @@
+.git
+*.o
+*.d
+*.iq
+art/
+.github
+documentation/
+CLAUDE.md
+PLAN.md
+RAPPORT.md
+selftest.iq
+tests/test_wsprd

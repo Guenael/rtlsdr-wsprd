@@ -74,7 +74,7 @@ static rtlsdr_dev_t *rtl_device = NULL;
 /* receiver State & Options */
 struct receiver_state {
     /* Variables used for stop conditions */
-    bool     exit_flag;
+    volatile bool exit_flag;
 
     /* Double buffering used for sampling */
     float    iSamples[2][SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
@@ -139,7 +139,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
        Using : Octave/MATLAB code for generating compensation FIR coefficients
        URL : https://github.com/WestCoastDSP/CIC_Octave_Matlab
      */
-    const static float zCoef[33] = {
+    static const float zCoef[33] = {
         -0.0027772683, -0.0005058826,  0.0049745750, -0.0034059318,
         -0.0077557814,  0.0139375423,  0.0039896935, -0.0299394142,
          0.0162250643,  0.0405130860, -0.0580746013, -0.0272104968,
@@ -171,7 +171,7 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
     for (uint32_t i = 0; i < samples_count; i += 8) {
         sigIn[i  ] ^=  0x80;  // Unsigned to signed conversion using
         sigIn[i+1] ^=  0x80;  //   XOR as a binary mask to flip the first bit
-        tmp         =  (sigIn[i+3] ^ 0x80);  // CHECK -127 alt. possible issue ?
+        tmp         =  (sigIn[i+3] ^ 0x80);
         sigIn[i+3]  =  (sigIn[i+2] ^ 0x80);
         sigIn[i+2]  = -tmp;
         sigIn[i+4]  = -(sigIn[i+4] ^ 0x80);
@@ -187,9 +187,9 @@ static void rtlsdr_callback(unsigned char *samples, uint32_t samples_count, void
              * Understanding cascaded integrator-comb filters
                https://www.embedded.com/design/configurable-systems/4006446/Understanding-cascaded-integrator-comb-filters
     */
-    for (int32_t i = 0; i < samples_count / 2; i++) {  // UPDATE: i+=2 & fix below
+    for (int32_t i = 0; i < samples_count / 2; i++) {
         /* Integrator stages (N=2) */
-        Ix1 += (int32_t)sigIn[i * 2];  // EVAL: option to move sigIn in float here
+        Ix1 += (int32_t)sigIn[i * 2];
         Qx1 += (int32_t)sigIn[i * 2 + 1];
         Ix2 += Ix1;
         Qx2 += Qx1;
@@ -366,20 +366,30 @@ void initDecoder_options() {
 void postSpots(uint32_t n_results) {
     CURL *curl;
     CURLcode res;
-    char url[256];
+    char url[512];
 
     if (rx_options.noreport) {
         LOG(LOG_DEBUG, "Decoder thread -- Skipping the reporting\n");
         return;
     }
 
-    /* No spot to report, stat option used */
-    // "Table 'wsprnet_db.activity' doesn't exist" reported on web site...
-    // Anyone has doc about this?
+    curl = curl_easy_init();
+    if (!curl)
+        return;
+
+    char *esc_rcall = curl_easy_escape(curl, dec_options.rcall, 0);
+    char *esc_rloc  = curl_easy_escape(curl, dec_options.rloc, 0);
+    if (!esc_rcall || !esc_rloc) {
+        curl_free(esc_rcall);
+        curl_free(esc_rloc);
+        curl_easy_cleanup(curl);
+        return;
+    }
+
     if (n_results == 0) {
-        snprintf(url, sizeof(url) - 1, "https://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=%s&mode=2",
-                 dec_options.rcall,
-                 dec_options.rloc,
+        snprintf(url, sizeof(url), "https://wsprnet.org/post?function=wsprstat&rcall=%s&rgrid=%s&rqrg=%.6f&tpct=%.2f&tqrg=%.6f&dbm=%d&version=%s&mode=2",
+                 esc_rcall,
+                 esc_rloc,
                  rx_options.dialfreq / 1e6,
                  0.0f,
                  rx_options.dialfreq / 1e6,
@@ -387,24 +397,23 @@ void postSpots(uint32_t n_results) {
                  wsprnet_app_version);
 
         LOG(LOG_DEBUG, "Decoder thread -- Sending empty report using this URL: %s\n", url);
-        curl = curl_easy_init();
-        if (curl) {
-            curl_easy_setopt(curl, CURLOPT_URL, url);
-            curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
-            res = curl_easy_perform(curl);
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
+        res = curl_easy_perform(curl);
 
-            if (res != CURLE_OK)
-                fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        if (res != CURLE_OK)
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
 
-            curl_easy_cleanup(curl);
-        }
+        curl_free(esc_rcall);
+        curl_free(esc_rloc);
+        curl_easy_cleanup(curl);
         return;
     }
 
     for (uint32_t i = 0; i < n_results; i++) {
-        snprintf(url, sizeof(url) - 1, "https://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=%s&mode=2",
-                 dec_options.rcall,
-                 dec_options.rloc,
+        snprintf(url, sizeof(url), "https://wsprnet.org/post?function=wspr&rcall=%s&rgrid=%s&rqrg=%.6f&date=%02d%02d%02d&time=%02d%02d&sig=%.0f&dt=%.1f&tqrg=%.6f&tcall=%s&tgrid=%s&dbm=%s&version=%s&mode=2",
+                 esc_rcall,
+                 esc_rloc,
                  dec_results[i].freq,
                  rx_state.gtm->tm_year - 100,
                  rx_state.gtm->tm_mon + 1,
@@ -420,18 +429,18 @@ void postSpots(uint32_t n_results) {
                  wsprnet_app_version);
 
         LOG(LOG_DEBUG, "Decoder thread -- Sending spot using this URL: %s\n", url);
-        curl = curl_easy_init();
-        if (curl) {
-            curl_easy_setopt(curl, CURLOPT_URL, url);
-            curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
-            res = curl_easy_perform(curl);
+        curl_easy_reset(curl);
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_NOBODY, 1);
+        res = curl_easy_perform(curl);
 
-            if (res != CURLE_OK)
-                fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-
-            curl_easy_cleanup(curl);
-        }
+        if (res != CURLE_OK)
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
     }
+
+    curl_free(esc_rcall);
+    curl_free(esc_rloc);
+    curl_easy_cleanup(curl);
 }
 
 
@@ -467,7 +476,7 @@ void printSpots(uint32_t n_results) {
 
 void saveSample(float *iSamples, float *qSamples) {
     if (rx_options.writefile == true) {
-        char filename[32];
+        char filename[64];
 
         time_t rawtime;
         time(&rawtime);
@@ -543,7 +552,7 @@ int32_t parse_u64(char *s, uint64_t *const value) {
 }
 
 
-int32_t readRawIQfile(float *iSamples, float *qSamples, char *filename) {
+int32_t readRawIQfile(float *iSamples, float *qSamples, const char *filename) {
     float filebuffer[2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
     FILE *fd = fopen(filename, "rb");
 
@@ -583,7 +592,7 @@ int32_t readRawIQfile(float *iSamples, float *qSamples, char *filename) {
 }
 
 
-int32_t writeRawIQfile(float *iSamples, float *qSamples, char *filename) {
+int32_t writeRawIQfile(float *iSamples, float *qSamples, const char *filename) {
     float filebuffer[2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
 
     FILE *fd = fopen(filename, "wb");
@@ -608,7 +617,7 @@ int32_t writeRawIQfile(float *iSamples, float *qSamples, char *filename) {
 }
 
 
-int32_t readC2file(float *iSamples, float *qSamples, char *filename) {
+int32_t readC2file(float *iSamples, float *qSamples, const char *filename) {
     float filebuffer[2 * SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE];
     FILE *fd = fopen(filename, "rb");
     int32_t nread;
@@ -658,7 +667,7 @@ int32_t readC2file(float *iSamples, float *qSamples, char *filename) {
 }
 
 
-void decodeRecordedFile(char *filename) {
+void decodeRecordedFile(const char *filename) {
     static float iSamples[SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE] = {0};
     static float qSamples[SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE] = {0};
     static uint32_t samples_len;
@@ -725,8 +734,8 @@ int32_t decoderSelfTest() {
 
     unsigned char symbols[162];
     char message[] = "K1JT FN20QI 20";
-    char hashtab[32768*13] = {0};
-    char loctab[32768*5]   = {0};  // EVAL: code update from wsprd
+    char hashtab[HASHTAB_SIZE * HASHTAB_ENTRY_LEN] = {0};
+    char loctab[HASHTAB_SIZE * LOCTAB_ENTRY_LEN]  = {0};
 
     // Compute sympbols from the message
     get_wspr_channel_symbols(message, hashtab, loctab, symbols);
@@ -770,8 +779,8 @@ int32_t decoderSelfTest() {
     }
 
     /* Simple consistency check */
-    if (strcmp(dec_results[0].call, "K1JT") &&
-        strcmp(dec_results[0].loc,  "FN20") &&
+    if (strcmp(dec_results[0].call, "K1JT") ||
+        strcmp(dec_results[0].loc,  "FN20") ||
         strcmp(dec_results[0].pwr,  "20")) {
         return 0;
     } else {
@@ -846,9 +855,10 @@ int main(int argc, char **argv) {
                         break;
                     case 1:  // --version
                         printf("rtlsdr_wsprd v%s\n", rtlsdr_wsprd_version);
-                        exit(EXIT_FAILURE);
+                        exit(EXIT_SUCCESS);
                         break;
                 }
+                break;
             case 'f':  // Frequency
                 if (!strcasecmp(optarg, "LF")) {
                     rx_options.dialfreq = 136000;

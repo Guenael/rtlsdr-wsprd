@@ -44,6 +44,18 @@
 #include "./wsprsim_utils.h"
 #include "./metric_tables.h"
 
+static int cand_snr_desc(const void *a, const void *b) {
+    float sa = ((const struct cand *)a)->snr;
+    float sb = ((const struct cand *)b)->snr;
+    return (sa < sb) - (sa > sb);
+}
+
+static int results_snr_desc(const void *a, const void *b) {
+    float sa = ((const struct decoder_results *)a)->snr;
+    float sb = ((const struct decoder_results *)b)->snr;
+    return (sa < sb) - (sa > sb);
+}
+
 #define SIGNAL_LENGHT       120
 #define SIGNAL_SAMPLE_RATE  375
 #define SIGNAL_SAMPLES      SIGNAL_LENGHT * SIGNAL_SAMPLE_RATE
@@ -254,7 +266,7 @@ void subtract_signal(float *id,
                      float f0,
                      int   shift,
                      float drift,
-                     unsigned char *channel_symbols) {
+                     const unsigned char *channel_symbols) {
 
     float c0[NSPERSYM], s0[NSPERSYM];
 
@@ -278,7 +290,7 @@ void subtract_signal(float *id,
 
         for (int j = 0; j < NSPERSYM; j++) {
             int k = shift + i * NSPERSYM + j;
-            if ((k > 0) & (k < np)) {
+            if ((k > 0) && (k < np)) {
                 i0 = i0 + id[k] * c0[j] + qd[k] * s0[j];
                 q0 = q0 - id[k] * s0[j] + qd[k] * c0[j];
             }
@@ -290,7 +302,7 @@ void subtract_signal(float *id,
 
         for (int j = 0; j < NSPERSYM; j++) {
             int k = shift + i * NSPERSYM + j;
-            if ((k > 0) & (k < np)) {
+            if ((k > 0) && (k < np)) {
                 id[k] = id[k] - (i0 * c0[j] - q0 * s0[j]);
                 qd[k] = qd[k] - (q0 * c0[j] + i0 * s0[j]);
             }
@@ -307,7 +319,7 @@ void subtract_signal2(float *id,
                       float f0,
                       int shift,
                       float drift,
-                      unsigned char *channel_symbols) {
+                      const unsigned char *channel_symbols) {
 
     float phi = 0.0;
     const int nfilt = 360;  // nfilt must be even number.
@@ -436,7 +448,7 @@ int wspr_decode(float  *idat,
     uint32_t metric, cycles, maxnp;
 
     /* Candidates properties */
-    struct cand candidates[200];
+    struct cand candidates[MAX_CANDIDATES];
 
     /* Decoded candidate */
     uint8_t symbols[NBITS * 2] = {0};
@@ -444,13 +456,13 @@ int wspr_decode(float  *idat,
     int8_t  message[12] = {0};
 
     /* Results */
-    char  callsign[13] = {0};
+    char  callsign[HASHTAB_ENTRY_LEN] = {0};
     char  call_loc_pow[23] = {0};
-    char  call[13] = {0};
+    char  call[HASHTAB_ENTRY_LEN] = {0};
     char  loc[7] = {0};
     char  pwr[3] = {0};
-    float allfreqs[100] = {0};
-    char  allcalls[100][13] = {0};
+    float allfreqs[MAX_UNIQUES] = {0};
+    char  allcalls[MAX_UNIQUES][HASHTAB_ENTRY_LEN] = {0};
 
     /* Setup metric table */
     int32_t mettab[2][256];
@@ -463,8 +475,8 @@ int wspr_decode(float  *idat,
     /* Setup/Load hash tables */
     FILE  *fhash;
     int   nh;
-    char  hashtab[32768 * 13] = {0};
-    char  loctab[32768 * 5] = {0};
+    char  hashtab[HASHTAB_SIZE * HASHTAB_ENTRY_LEN] = {0};
+    char  loctab[HASHTAB_SIZE * LOCTAB_ENTRY_LEN] = {0};
 
     if (options.usehashtable) {
         char line[80], hcall[12], hgrid[5];;
@@ -472,18 +484,20 @@ int wspr_decode(float  *idat,
             while (fgets(line, sizeof(line), fhash) != NULL) {
                 hgrid[0] = '\0';
                 sscanf(line, "%d %s %s", &nh, hcall, hgrid);
-                strcpy(hashtab + nh * 13, hcall);
-                if (strlen(hgrid) > 0) strcpy(loctab + nh * 5, hgrid);
+                if (nh >= 0 && nh < HASHTAB_SIZE) {
+                    snprintf(hashtab + nh * HASHTAB_ENTRY_LEN, HASHTAB_ENTRY_LEN, "%s", hcall);
+                    if (strlen(hgrid) > 0) snprintf(loctab + nh * LOCTAB_ENTRY_LEN, LOCTAB_ENTRY_LEN, "%s", hgrid);
+                }
             }
             fclose(fhash);
         }
     }
 
-    /* FFT buffer (512 bins) */
+    /* FFT buffer */
     fftwf_complex *fftin, *fftout;
-    fftin  = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * 512);
-    fftout = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * 512);
-    PLAN   = fftwf_plan_dft_1d(512, fftin, fftout, FFTW_FORWARD, PATIENCE);
+    fftin  = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * FFT_SIZE);
+    fftout = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex) * FFT_SIZE);
+    PLAN   = fftwf_plan_dft_1d(FFT_SIZE, fftin, fftout, FFTW_FORWARD, PATIENCE);
 
     /* Recover FFTW optimization settings */
     FILE *fp_fftw_wisdom_file;
@@ -493,15 +507,15 @@ int wspr_decode(float  *idat,
     }
 
     /* Hann function */
-    float hann[512];
-    for (int i = 0; i < 512; i++) {
+    float hann[FFT_SIZE];
+    for (int i = 0; i < FFT_SIZE; i++) {
         hann[i] = sinf(0.006147931 * i);
     }
 
     /* FFT output alloc */
-    const int blocks = 4 * floor(samples / 512) - 1;
-    float ps[512][blocks];
-    memset(ps, 0.0, sizeof(float) * 512 * blocks);
+    const int blocks = 4 * floor(samples / FFT_SIZE) - 1;
+    float ps[FFT_SIZE][blocks];
+    memset(ps, 0.0, sizeof(float) * FFT_SIZE * blocks);
 
     /* Main loop starts here */
     for (int ipass = 0; ipass < options.npasses; ipass++) {
@@ -521,7 +535,7 @@ int wspr_decode(float  *idat,
          */
         for (int i = 0; i < blocks; i++) {
             /* Load samples */
-            for (int j = 0; j < 512; j++) {
+            for (int j = 0; j < FFT_SIZE; j++) {
                 int k = i * 128 + j;
                 fftin[j][0] = idat[k] * hann[j];
                 fftin[j][1] = qdat[k] * hann[j];
@@ -530,18 +544,18 @@ int wspr_decode(float  *idat,
             fftwf_execute(PLAN);
 
             /* Recover frequencies */
-            for (int j = 0; j < 512; j++) {
-                int k = j + 256;
-                if (k > 511)
-                    k = k - 512;
+            for (int j = 0; j < FFT_SIZE; j++) {
+                int k = j + FFT_SIZE / 2;
+                if (k > FFT_SIZE - 1)
+                    k = k - FFT_SIZE;
                 ps[j][i] = fftout[k][0] * fftout[k][0] + fftout[k][1] * fftout[k][1];
             }
         }
 
         // Compute average spectrum
-        float psavg[512] = {0};
+        float psavg[FFT_SIZE] = {0};
         for (int i = 0; i < blocks; i++) {
-            for (int j = 0; j < 512; j++) {
+            for (int j = 0; j < FFT_SIZE; j++) {
                 psavg[j] += ps[j][i];
             }
         }
@@ -583,7 +597,7 @@ int wspr_decode(float  *idat,
         }
 
         // Find all local maxima in smoothed spectrum.
-        for (int i = 0; i < 200; i++) {
+        for (int i = 0; i < MAX_CANDIDATES; i++) {
             candidates[i].freq  = 0.0;
             candidates[i].snr   = 0.0;
             candidates[i].drift = 0.0;
@@ -596,7 +610,7 @@ int wspr_decode(float  *idat,
         for (int j = 1; j < 410; j++) {
             candidate = (smspec[j] > smspec[j - 1]) &&
                         (smspec[j] > smspec[j + 1]) &&
-                        (npk < 200);
+                        (npk < MAX_CANDIDATES);
             if (candidate) {
                 candidates[npk].freq = (j - 205) * (DF / 2.0);
                 candidates[npk].snr = 10.0 * log10f(smspec[j]) - snr_scaling_factor;
@@ -614,17 +628,7 @@ int wspr_decode(float  *idat,
         }
         npk = i;
 
-        // bubble sort on snr, bringing freq along for the ride
-        struct cand tmp;
-        for (int pass = 1; pass <= npk - 1; pass++) {
-            for (int k = 0; k < npk - pass; k++) {
-                if (candidates[k].snr < candidates[k + 1].snr) {
-                    tmp = candidates[k];
-                    candidates[k] = candidates[k + 1];
-                    candidates[k + 1] = tmp;
-                }
-            }
-        }
+        qsort(candidates, npk, sizeof(struct cand), cand_snr_desc);
 
         /* Make coarse estimates of shift (DT), freq, and drift
          * Look for time offsets up to +/- 8 symbols (about +/- 5.4 s) relative
@@ -640,7 +644,7 @@ int wspr_decode(float  *idat,
            signal vector.
          */
         for (int j = 0; j < npk; j++) {  // For each candidate...
-            float sync, sync_max = -1e30;
+            float sync = 0.0, sync_max = -1e30;
             int if0 = candidates[j].freq / (DF / 2.0) + NSPERSYM;
             for (int ifr = if0 - 1; ifr <= if0 + 1; ifr++) {                      // Freq search
                 for (int k0 = -10; k0 < 22; k0++) {                               // Time search
@@ -796,7 +800,7 @@ int wspr_decode(float  *idat,
                 }
 
                 if (!dupe) {
-                    strcpy(allcalls[uniques], callsign);
+                    snprintf(allcalls[uniques], sizeof(allcalls[0]), "%s", callsign);
                     allfreqs[uniques] = freq;
                     uniques++;
 
@@ -810,26 +814,17 @@ int wspr_decode(float  *idat,
                     decodes[uniques - 1].drift  = drift;
                     decodes[uniques - 1].cycles = cycles;
                     decodes[uniques - 1].jitter = ii;
-                    strcpy(decodes[uniques - 1].message, call_loc_pow);
-                    strcpy(decodes[uniques - 1].call, call);
-                    strcpy(decodes[uniques - 1].loc, loc);
-                    strcpy(decodes[uniques - 1].pwr, pwr);
+                    snprintf(decodes[uniques - 1].message, sizeof(decodes[0].message), "%s", call_loc_pow);
+                    snprintf(decodes[uniques - 1].call, sizeof(decodes[0].call), "%s", call);
+                    snprintf(decodes[uniques - 1].loc, sizeof(decodes[0].loc), "%s", loc);
+                    snprintf(decodes[uniques - 1].pwr, sizeof(decodes[0].pwr), "%s", pwr);
                 }
             }
         }
     }
 
     /* Sort the result */
-    struct decoder_results temp;
-    for (int j = 1; j <= uniques - 1; j++) {
-        for (int k = 0; k < uniques - j; k++) {
-            if (decodes[k].snr < decodes[k + 1].snr) {
-                temp = decodes[k];
-                decodes[k] = decodes[k + 1];
-                decodes[k + 1] = temp;
-            }
-        }
-    }
+    qsort(decodes, uniques, sizeof(struct decoder_results), results_snr_desc);
 
     /* Return number of spots to the calling fct */
     *n_results = uniques;
@@ -846,12 +841,14 @@ int wspr_decode(float  *idat,
 
     if (options.usehashtable) {
         fhash = fopen("hashtable.txt", "w");
-        for (int i = 0; i < 32768; i++) {
-            if (strncmp(hashtab + i * 13, "\0", 1) != 0) {
-                fprintf(fhash, "%5d %s %s\n", i, hashtab + i * 13, loctab + i * 5);
+        if (fhash) {
+            for (int i = 0; i < HASHTAB_SIZE; i++) {
+                if (strncmp(hashtab + i * HASHTAB_ENTRY_LEN, "\0", 1) != 0) {
+                    fprintf(fhash, "%5d %s %s\n", i, hashtab + i * HASHTAB_ENTRY_LEN, loctab + i * LOCTAB_ENTRY_LEN);
+                }
             }
+            fclose(fhash);
         }
-        fclose(fhash);
     }
 
     return 0;
