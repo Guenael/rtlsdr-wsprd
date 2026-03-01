@@ -30,6 +30,7 @@ COPY . /root/rtlsdr-wsprd
 
 RUN cd /root/rtlsdr-wsprd && \
   make && \
+  make test && \
   make install
 
 # -------------------------
@@ -39,7 +40,8 @@ FROM debian:bookworm-slim
 
 RUN apt-get update && \
   apt-get -y --no-install-recommends install \
-   	libcurl4 \
+    ca-certificates \
+    libcurl4 \
     libfftw3-single3 \
     usbutils && \
   rm -rf /var/lib/apt/lists/*
