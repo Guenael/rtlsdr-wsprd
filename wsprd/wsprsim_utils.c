@@ -283,13 +283,20 @@ int get_wspr_channel_symbols(char *rawmessage, char *hashtab, char *loctab, unsi
     call = malloc(sizeof(char) * 13);
     loc = malloc(sizeof(char) * 7);
     pwr = malloc(sizeof(char) * 3);
+    if (!check_call_loc_pow || !check_callsign || !call || !loc || !pwr) {
+        free(check_call_loc_pow);
+        free(check_callsign);
+        free(call);
+        free(loc);
+        free(pwr);
+        return 0;
+    }
     signed char check_data[11];
     memcpy(check_data, data, sizeof(char) * 11);
 
     unpk_(check_data, hashtab, loctab, check_call_loc_pow, call, loc, pwr, check_callsign);
-    //    printf("Will decode as: %s\n",check_call_loc_pow);
 
-    unsigned int nbytes = 11;                  // The message with tail is packed into almost 11 bytes.
+    unsigned int nbytes = 11;
     unsigned char channelbits[nbytes * 8 * 2]; /* 162 rounded up */
     memset(channelbits, 0, sizeof(char) * nbytes * 8 * 2);
 
@@ -302,6 +309,9 @@ int get_wspr_channel_symbols(char *rawmessage, char *hashtab, char *loctab, unsi
     }
     free(check_call_loc_pow);
     free(check_callsign);
+    free(call);
+    free(loc);
+    free(pwr);
     return 1;
 }
 

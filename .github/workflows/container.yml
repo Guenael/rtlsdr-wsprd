@@ -18,7 +18,7 @@ jobs:
 
       - name: "Calculate Container Metadata"
         id: meta
-        uses: crazy-max/ghaction-docker-meta@v1
+        uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
 
