@@ -49,6 +49,25 @@ GitHub Actions (`.github/workflows/ci.yml`): CodeQL, cppcheck, cpplint, codespel
 5. **WSPR decode** — FFT candidate search → coarse/fine sync → Fano convolutional decoder (K=32) → message unpack
 6. **HTTP POST** decoded spots to wsprnet.org
 
+### WSPR Signal Constants
+
+162 symbols (NSYM), 81 info bits (NBITS), 256 samples/symbol (NSPERSYM)
+4-FSK: tone spacing DF = 375/256 = 1.4648 Hz, ~6 Hz bandwidth
+FFT: 512-point (0.73 Hz/bin), Hann window, 128-sample step
+Message: 50 bits (28-bit callsign mixed-radix + 22-bit grid/power), K=32 rate-1/2 convolutional code
+
+### WSPR Decode Pipeline (`wsprd/wsprd.c`)
+
+- **Multi-pass**: 3 passes; after each decode, `subtract_signal2()` removes it from the buffer
+- **FFT candidate search**: short-time FFT power spectrum → noise floor (30th percentile) → local maxima → up to 200 candidates
+- **`sync_and_demodulate()`** — 3-mode engine:
+  - Mode 0: coarse time search (sweep sample lag)
+  - Mode 1: fine frequency search (sweep ±0.2 Hz)
+  - Mode 2: soft symbol extraction (8-bit, ±jitter up to 128 samples)
+- **Fano decoder** (`wsprd/fano.c`): K=32, Layland-Lushbaugh polynomials (0xf2d05351, 0xe4613c47), delta=60, maxcycles=10000
+- **Message unpack** (`wsprd/wsprd_utils.c`): `unpack50()` → `unpackcall()` (mixed-radix 36×36×10×27×27×27) → `unpackgrid()` → `unpk_()`
+- **Message pack** (`wsprd/wsprsim_utils.c`): `pack_call()` → `pack_grid4_power()` → `get_wspr_channel_symbols()` (encoder + interleaver + sync merge)
+
 ### Threading Model (3 threads)
 
 - **Main thread**: Initializes RTL-SDR, runs 2-minute timing loop aligned to UTC even minutes, flips double buffer, signals decoder
@@ -69,6 +88,10 @@ Synchronization via `safe_cond_signal`/`safe_cond_wait` macros (mutex + condvar)
 - `wsprd/wsprsim_utils.c` — Message packing / channel symbol generation (encoder side, used by self-test)
 - `wsprd/fano.c` — Fano sequential convolutional decoder (KA9Q)
 - `wsprd/nhash.c` — Jenkins hash for callsign hash table
+- `wsprd/metric_tables.h` — Pre-computed soft-decision LLR tables (5 SNR levels × 256 entries)
+- `wsprd/tab.c` — 256-byte parity lookup for Fano ENCODE macro
+
+Full decoder analysis: `documentation/wsprd-analysis/REPORT.md`
 
 ## Code Style
 
